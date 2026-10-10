@@ -16,7 +16,15 @@ export async function api<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Error ${response.status}: ${response.statusText}`);
+    const error = await response.text();
+
+    console.error("Error del backend:", {
+      endpoint,
+      status: response.status,
+      error,
+    });
+
+    throw new Error(`Error ${response.status}: ${error}`);
   }
 
   return response.json();
@@ -34,22 +42,32 @@ export async function getSocios<T>() {
 }
 
 
-
 type Credenciales = {
   email: string;
   password: string;
 };
 
-export async function iniciarSesion<T>(
+type LoginResponse = {
+  jwt: string;
+};
+
+export async function iniciarSesion(
   credenciales: Credenciales
-): Promise<T> {
-  return api<T>("/usuario/login", {
+): Promise<LoginResponse> {
+  const respuesta = await api<LoginResponse>("/usuario/login", {
     method: "POST",
     body: JSON.stringify(credenciales),
   });
+
+  // Guardar el JWT en el navegador
+  localStorage.setItem("jwt", respuesta.jwt);
+
+  return respuesta;
 }
 
-
+export function cerrarSesion(): void {
+  localStorage.removeItem("jwt");
+}
 
 type SocioData = {
   persona: {

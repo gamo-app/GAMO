@@ -134,9 +134,7 @@ header h1{
   color: var(--siempreblanco);
 }
 
-header .icon{
-  margin-bottom: 0.7vh;
-}
+
 footer{
    display:flex;
   flex-direction: row;
