@@ -9,20 +9,20 @@ import json
 
 router = APIRouter()
 
-#get all socios 
+#get all profersores 
 @router.get("")
-async def get_all_socios(request: Request):
+async def get_all_profersores(request: Request):
     #falta la auth del usuario para saber si tiene permisos 
     try:
-        return await get_socios(request.scope["env"])
+        return await get_profersores(request.scope["env"])
     except  HTTPException as e:
         raise HTTPException(400, detail=e.args) 
     
     
-async def get_socios(env):
+async def get_profersores(env):
     url, key = get_supabase_config(env)
     response = await fetch(
-        f"{url}/rest/v1/socio?select=*",
+        f"{url}/rest/v1/profesor?select=*",
         headers={
             "apikey": key,
             "Authorization": f"Bearer {key}",
@@ -38,20 +38,13 @@ async def get_socios(env):
     return await response.json()    
 #----------------------------------------#
 
-#get socio por estado
-@router.get("/estado/{estado}")
-async def get_socios_nombre(request: Request, estado: str):
-    #falta la auth del usuario para saber si tiene permisos 
-    try:
-        return await socio_nombre(request.scope["env"], estado)
-    except  HTTPException as e:
-        raise HTTPException(400, detail=e.args) 
+
     
     
-async def socio_nombre(env, estado: str):
+async def get_profesor_by_id(env, id_profersor: str):
     url, key = get_supabase_config(env)
     response = await fetch(
-        f"{url}/rest/v1/socio?estado=eq.{estado.strip()}&select=*",
+        f"{url}/rest/v1/profesor?id_profesor=eq.{id_profersor}&select=*",
         headers={
             "apikey": key,
             "Authorization": f"Bearer {key}",

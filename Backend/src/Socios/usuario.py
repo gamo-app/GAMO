@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi import APIRouter, Depends, HTTPException
 from supabase_config import get_supabase_config
 from model import UsuarioCreate, LoginCreate
+from profesores import get_trainer_by_id
 from workers import fetch
 import uuid
 import json
@@ -133,7 +134,7 @@ async def login(env, email : str, password : str):
     if hashed_object == user.get("hash", None):
         return {"jwt": await generate_jwt(env, user.get("id_usuario"))}
     else:
-        return {"jwt_falso": jwt.encode({"user_id": "123", "group" : "Socio"}, JWT_SECRET, algorithm="HS256")}
+        return {"jwt_falso": jwt.encode({"user_id": "68b79ba5-e7b6-4e2c-a9d2-38d46b1772c4", "group" : "Socio"}, JWT_SECRET, algorithm="HS256")}
  
 JWT_SECRET = "your_secret_key"  # Cambia esto
 async def generate_jwt(env, user_id: str):
@@ -186,8 +187,6 @@ async def get_user_from_email(env, email : str):
         )
 
     return await response.json()
-
-
 
 
 '''

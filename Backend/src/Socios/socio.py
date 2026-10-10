@@ -64,6 +64,24 @@ async def socio_nombre(env, estado: str):
         )
 
     return await response.json()    
+
+async def get_socio_by_id(env, id_socio: str):
+    url, key = get_supabase_config(env)
+    response = await fetch(
+        f"{url}/rest/v1/socio?id_socio=eq.{id_socio}&select=*",
+        headers={
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+        },
+    )
+
+    if not response.ok:
+        raise HTTPException(
+            status_code=response.status,
+            detail=await response.text(),
+        )
+
+    return await response.json()  
 #----------------------------------------#
 
 

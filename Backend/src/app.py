@@ -1,7 +1,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from Socios import socio, usuario, profesores
+from Socios import socio, usuario, profesores, representante
 
 
 @asynccontextmanager
@@ -31,3 +31,8 @@ app.include_router(profesores.router,
                    prefix='/profesores',
                    tags=['profesores'],
                    responses={404: {"profesores": "Not Found"}})
+
+app.include_router(representante.router,
+                   prefix='/representante',
+                   tags=['Representante'],
+                   responses={404: {"Representante": "Not Found"}})
