@@ -15,6 +15,10 @@ from Routers import (
     router_socio as socio,
     router_usuario as usuario,
 )
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from Socios import socio, usuario, profesores, representante
 
 
 @asynccontextmanager
@@ -76,6 +80,13 @@ app.include_router(sede.router,
                    tags=['sede'],
                    responses={404: {"sede": "Not Found"}})
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173","https://gamo-ekk.pages.dev"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(socio.router,
                    prefix='/socio',
                    tags=['Socio'],

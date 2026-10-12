@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Capa_2" data-name="Capa 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60">
+  
+  <g id="Capa_1-2" data-name="Capa 1">
+    <g>
+      <path fill= "currentColor" d="m44.12,3.32V0H8.38v3.32h-3.84C2.03,3.32,0,5.51,0,8.21v46.89c0,2.7,2.03,4.9,4.53,4.9h43.43c2.5,0,4.53-2.19,4.53-4.9V8.21c0-2.7-2.03-4.9-4.53-4.9h-3.84Zm-.92,51.56H9.29c-2.2,0-3.99-1.93-3.99-4.31V13.35c0-2.38,1.79-4.31,3.99-4.31h33.91c2.2,0,3.99,1.93,3.99,4.31v37.22c0,2.38-1.79,4.31-3.99,4.31Z"/>
+      <g>
+        <rect fill= "currentColor" x="23.1" y="30.04" width="16.2" height="4.2" rx="2.1" ry="2.1"/>
+        <rect fill= "currentColor" x="9.1" y="26.44" width="11.4" height="11.4" rx="3.31" ry="3.31"/>
+      </g>
+      <g>
+        <rect fill= "currentColor" x="23.1" y="16.54" width="16.2" height="4.2" rx="2.1" ry="2.1"/>
+        <rect fill= "currentColor" x="9.1" y="12.94" width="11.4" height="11.4" rx="3.31" ry="3.31"/>
+      </g>
+      <rect fill= "currentColor" x="9.1" y="39.94" width="11.4" height="11.4" rx="3.31" ry="3.31"/>
+      <path fill= "currentColor" d="m22.99,20.54h47.1v9H22.99c-2.48,0-4.5-2.02-4.5-4.5h0c0-2.48,2.02-4.5,4.5-4.5Z" transform="translate(1.9 53.17) rotate(-63.04)"/>
+    </g>
+  </g>
+</svg>

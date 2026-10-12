@@ -10,7 +10,6 @@
 
   "compatibility_flags": [
     "python_workers",
-    "disable_python_external_sdk"
   ],
 
   "observability": {

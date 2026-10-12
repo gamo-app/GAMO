@@ -1,0 +1,38 @@
+@keyframes cargar {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes aparecer {
+  from {
+    transform: translateX(-1vh);
+    opacity: 0%;
+  }
+
+  to {
+    transform: translateX(0vh);
+    opacity: 100%;
+
+  }
+}
+.proceso {
+  animation: proceso 1s  steps(1) infinite;
+}
+@keyframes proceso {
+  0%{
+    transform: scaleX(1);
+  }
+  50%{
+    transform: scaleX(-1);
+
+  }
+  100%{
+    transform: scaleX(1);
+
+  }
+}

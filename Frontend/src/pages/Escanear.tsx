@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import Header from "../components/Header";
+import Main from "../components/Main";
 function Escanear() {
+  
   const [codigo, setCodigo] = useState("");
 
   useEffect(() => {
@@ -51,9 +53,10 @@ function Escanear() {
   }, []);
 
   return (
-    <main >
-<section className="escanear">
+    <Main>
   <Header></Header>
+
+<section className="escanear">
  
       
       <div className="texto-escanear">
@@ -76,7 +79,7 @@ function Escanear() {
 
 </section>
       
-    </main>
+   </Main>
   );
 }
 

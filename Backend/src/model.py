@@ -3,6 +3,10 @@ from datetime import date
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from typing import Optional
+from uuid import UUID
+from enum import Enum
 
 class EstadoUsuarioEnum(str, Enum):
     activo = "activo"

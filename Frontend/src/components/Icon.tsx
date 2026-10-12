@@ -9,6 +9,15 @@ import Tilde from "../assets/svg/tilde.svg?raw";
 import Equis from "../assets/svg/equis.svg?raw";
 import Logomini from "../assets/svg/logomini.svg?raw";
 import Logo from "../assets/svg/logo.svg?raw";
+import Socio from "../assets/svg/socios.svg?raw";
+import Triste from "../assets/svg/triste.svg?raw";
+import Puntos from "../assets/svg/puntos.svg?raw";
+import Ubicacion from "../assets/svg/ubicacion.svg?raw";
+import Correo from "../assets/svg/correo.svg?raw";
+import WhatsApp from "../assets/svg/whatsapp.svg?raw";
+import Telefono from "../assets/svg/telefono.svg?raw";
+import Atras from "../assets/svg/atras.svg?raw";
+import Notificacion from "../assets/svg/notificaciones.svg?raw";
 
 interface IconProps {
   tipo?: number;
@@ -23,17 +32,26 @@ function Icon({
 }: IconProps) {
 
   const iconos = [
-    Home,
-    Calendario,
-    Usuario,
-    Lupa,
-    Qr,
-    Reloj1,
-    Reloj2,
-    Tilde,
-    Equis,
-    Logomini,
-    Logo,
+    Home,         //0
+    Calendario,   //1
+    Usuario,      //2
+    Lupa,         //3
+    Qr,           //4
+    Reloj1,       //5
+    Reloj2,       //6
+    Tilde,        //7
+    Equis,        //8
+    Logomini,     //9
+    Logo,         //10
+    Socio,        //11
+    Triste,       //12
+    Puntos,       //13
+    Ubicacion,    //14
+    Correo,       //15
+    WhatsApp,     //16
+    Telefono,     //17
+    Atras,        //18
+    Notificacion ,//19
   ];
 
   const colores = [

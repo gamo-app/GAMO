@@ -5,6 +5,7 @@
   --blanco: #ffffff;
   --siempreblanco: #ffffff;
   --gris: #f1f7fd;
+  --gris3: #eef6ff;
   --gris2: #e8e9e9;
   --grisoscuro: #8a95aa;
   --amarillopastel:#fff1cc;
@@ -51,15 +52,29 @@ main{
   top: 0;
   display: grid;
   grid-template: 
+  "HEA HEA HEA" auto
   "SEC SEC SEC" 1fr
   "FOO FOO FOO" auto/
   auto auto auto
   ;
 }
 
+header.h2{
+  width: 100%;
+  height: 8vh;
+  grid-area:HEA;
+  display:flex;
+  flex-direction: row;
+  justify-content:  space-between;
+  align-items: center;
+  padding-left: 5%;
+  padding-right: 5%;
+
+
+}
 header{
   width: 100%;
-  height: 10vh;
+  height: 8vh;
   grid-area:HEA;
   background-color: var(--azul);
   display:flex;
@@ -69,11 +84,10 @@ header{
   padding-left: 5%;
   padding-right: 5%;
   padding-top: 2vh; 
-  padding-bottom: 1vh; 
+  padding-bottom: 2vh; 
 
 
 }
-
 header.login{
   padding: 0;
   height: 20vh;
@@ -89,6 +103,11 @@ header.login p{
 section.login{
   padding-top: 5vh;
   border-radius: 2vh 2vh 0vh 0vh;
+}
+section.centro{
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
 }
 main.login{
    grid-template: 
@@ -114,9 +133,8 @@ background-color: var(--blanco);
 header h1{
   color: var(--siempreblanco);
 }
-header .icon{
-  margin-bottom: 0.7vh;
-}
+
+
 footer{
    display:flex;
   flex-direction: row;
@@ -138,6 +156,7 @@ section{
   flex-direction: column;
   justify-content: top;
   gap: 2vh;
+  padding-top: 4vh;
   position:relative;
   overflow-y: auto;
 
@@ -149,8 +168,8 @@ section{
 
 
 h1{
-  font-size: 2.8vh;
-  font-weight: 900;
+  font-size: 2vh;
+  font-weight: 700;
 }
 h2{
   font-size: 2.5vh;
@@ -166,6 +185,10 @@ h4{
   font-size: 2.2vh;
   font-weight: 600;
 
+}
+label{
+    font-size:2vh;
+  font-weight: 500;
 }
 p{
   color: var(--grisoscuro);
@@ -184,6 +207,19 @@ span{
   display:flex;
   flex-direction: column;
   gap: 1vh;
+  padding-left: 2vh;
+  padding-right: 2vh;
+  margin-bottom: 2vh;
+
+}
+.bloque4{
+  width: 100%;
+  max-width: 50vh;
+  display:flex;
+  flex-direction: column;
+  gap: 1vh;
+  align-items: center;
+
   padding-left: 2vh;
   padding-right: 2vh;
   margin-bottom: 2vh;
@@ -220,6 +256,55 @@ span{
 position:relative;
   flex-wrap: wrap;
 }
+.listacentro{
+   display:flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5vh;
+  width: 100%;
+  height: 70vh;
+position:relative;
+  flex-wrap: wrap;
+}
+.listay2{
+  display:flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5vh;
+  width: 100%;
+position:relative;
+  flex-wrap: wrap;
+}
+details.azul{
+  display:flex;
+  flex-direction: column-reverse;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5vh;
+  width: 100%;
+position:relative;
+  flex-wrap: wrap;
+  position: relative;
+}
+details.azul summary{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 5vh;
+  background-color: var(--azul);
+  color: var(--siempreblanco);
+  max-width: 50vh;
+  border-radius: 3vh;
+  font-weight: 500;
+  margin-bottom: 2vh;
+  font-size: 1.6vh;
+}
+details.azul input.blanco,details.azul select.blanco {
+  margin: 0;
+}
+
 .listabloques{
    display:flex;
   flex-direction: column;
@@ -265,6 +350,7 @@ background-color: var(--blanco);
    color:var(--azul);
 }
 .rectangulo{
+  position: relative;
   width: 100%;
   max-width: 50vh;
   height: 8vh;
@@ -278,6 +364,49 @@ background-color: var(--blanco);
   padding-left: 2vh;
   padding-right: 2vh;
 
+
+}
+
+.rectangulo:not(.cargando) {
+  animation: aparecer 0.5s both;
+
+}
+.rectangulo.cargando h4,.rectangulo.cargando p{
+background: linear-gradient(
+    90deg,
+    var(--gris2) 25%,
+    var(--blanco) 50%,
+    var(--gris2) 75%
+  );
+
+  background-size: 200% 100%;
+  animation: cargar 1.5s infinite linear;
+ border-radius: 2vh;
+color: var(--gris);
+font-size: 0vh;
+width: 20vh;
+height: 2vh;
+}
+.rectangulo.cargando p{
+
+width: 10vh;
+height: 2vh;
+}
+.rectangulo.cargando .iconoperfil{
+
+background: linear-gradient(
+    90deg,
+    var(--gris2) 25%,
+    var(--blanco) 50%,
+    var(--gris2) 75%
+  );
+
+  background-size: 200% 100%;
+  animation: cargar 1.5s infinite linear;
+}
+
+.rectangulo.cargando img,.rectangulo.cargando svg,.rectangulo.cargando button{
+display: none;
 }
 .rectangulo span{
  color: var(--grisoscuro);
@@ -287,6 +416,16 @@ background-color: var(--blanco);
   display:flex;
   gap: 1.5vh;
     justify-content: center;
+  align-items: center;
+}
+.divisorx2{
+  display:flex;
+  gap: 0.2vh;
+  align-items: center;
+}
+.divisorx3{
+  display:flex;
+  gap: 0.5vh;
   align-items: center;
 }
 .horario{
@@ -313,6 +452,23 @@ background-color: var(--blanco);
   width: 5vh;
   height: 5vh;
   border-radius: 1.8vh;
+  display:flex;
+  justify-content: center;
+  align-items: center;
+}
+.botoncuadrado{
+  width: 5vh;
+  height: 5vh;
+  border-radius: 1.8vh;
+  display:flex;
+  justify-content: center;
+  align-items: center;
+  background-color: transparent;
+}
+.cuadrado2{
+  width:10vh;
+  height: 10vh;
+  border-radius: 3.2vh;
   display:flex;
   justify-content: center;
   align-items: center;
@@ -361,16 +517,15 @@ button.azul{
   max-width: 50vh;
   border-radius: 3vh;
   font-weight: 500;
-  color: var(--blanco);
   margin-top: 2vh;
   font-size: 1.6vh;
 }
-input{
+input, select,.finput{
   display: flex;
   padding-left: 2vh;
   color: var(--negro);
 }
-input::placeholder{
+input::placeholder, select::placeholder{
   color: var(--grisoscuro);
 
 }
@@ -385,6 +540,68 @@ input.blanco{
   margin-bottom: 2vh;
   font-size: 1.6vh;
 }
+.finput{
+  align-items: center;
+ width: 100%;
+  height: 5vh;
+  background-color: var(--blanco);
+  border:var(--negro) 0.2vh solid ;
+  max-width: 50vh;
+  border-radius: 3vh;
+  font-weight: 500;
+  font-size: 1.6vh;
+}
+select.blanco{
+  width: 100%;
+  height: 5vh;
+  background-color: var(--blanco);
+  border:var(--negro) 0.2vh solid ;
+  max-width: 50vh;
+  border-radius: 3vh;
+  font-weight: 500;
+  margin-bottom: 2vh;
+  font-size: 1.6vh;
+}
+.inputfecha{
+  margin-top: 1.2vh;
+  width: 100%;
+  height: 5vh;
+  display:flex;
+  gap: 1.5vh;
+    justify-content: center;
+  align-items: center;
+}
+.inputfecha2{
+  width: 100%;
+  height: 5vh;
+  display:flex;
+  gap: 1.5vh;
+    justify-content: center;
+  align-items: center;
+}
+.iconoperfil{
+  overflow: hidden;
+  display:flex;
+  justify-content: baseline;
+  align-items: end;
+}
+.inputfecha p{
+  margin-bottom: 2vh;
+  font-size: 2vh;
+
+}
+.inputfecha select{
+  width: 100%;
+  height: 5vh;
+  background-color: var(--blanco);
+  border:var(--negro) 0.2vh solid ;
+  max-width: 50vh;
+  border-radius: 3vh;
+  font-weight: 500;
+  color: var(--negro);
+  margin-bottom: 2vh;
+  font-size: 1.6vh;
+}
 a.azul{
   display: flex;
   justify-content: center;
@@ -396,9 +613,50 @@ a.azul{
   max-width: 50vh;
   border-radius: 3vh;
   font-weight: 500;
-  color: var(--blanco);
   margin-top: 2vh;
   font-size: 1.6vh;
+}
+a.azul2{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 5vh;
+  background-color: var(--azul);
+  color: var(--siempreblanco);
+  max-width: 50vh;
+  border-radius: 3vh;
+  font-weight: 500;
+  font-size: 1.6vh;
+}
+a.circuloazul{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width:4vh;
+  height: 4vh;
+  background-color: var(--azul);
+  color: var(--siempreblanco);
+  max-width: 50vh;
+  border-radius: 3vh;
+  font-weight: 500;
+  font-size: 1.6vh;
+}
+a.circuloazul2{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width:5vh;
+  height: 5vh;
+  background-color: var(--azul);
+  color: var(--siempreblanco);
+  max-width: 50vh;
+  border-radius: 3vh;
+  font-weight: 500;
+  font-size: 1.6vh;
+}
+a.circuloazul2 img.icon{
+  margin-bottom: 0.2vh;
 }
 a.rojo{
   display: flex;
@@ -411,7 +669,6 @@ a.rojo{
   max-width: 50vh;
   border-radius: 3vh;
   font-weight: 500;
-  color: var(--blanco);
   margin-top: 2vh;
   font-size: 1.6vh;
 }
@@ -478,6 +735,23 @@ a.escanear{
   justify-content: space-between;
 }
 
+
+.texto2{
+
+  height: 4vh;
+  display:flex;
+  gap: 0.5vh;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.texto2 h4,.texto h4 {
+  white-space: nowrap;
+  text-wrap: wrap;
+  overflow: hidden;
+  padding-bottom: 2vh;
+  text-overflow: ellipsis;
+}
 .pantalla-escanear {
   width: 100vw;
   height: 100vh;

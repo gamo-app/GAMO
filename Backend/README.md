@@ -159,6 +159,44 @@ Cuando se agregue o modifique una dependencia Python, ejecutar nuevamente:
 
 ```powershell
 uv sync
+uv run pywrangler sync
+npx wrangler dev
+```
+
+Qué hace cada comando:
+
+- `uv sync` prepara el entorno virtual de desarrollo e instala las
+  dependencias declaradas en `pyproject.toml`, usando `uv.lock` para resolver
+  versiones reproducibles.
+- `uv run pywrangler sync` prepara y empaqueta los paquetes Python que necesita
+  el runtime de Cloudflare Workers. Vuelve a ejecutarlo cuando agregues o
+  actualices dependencias.
+- `npx wrangler dev` inicia el servidor local de Cloudflare Workers. También
+  puedes ejecutar `npm run dev`.
+
+### Dependencias Python
+
+- **FastAPI**: define los endpoints, valida los datos recibidos y publica la
+  documentación OpenAPI/Swagger en `/docs`.
+- **Supabase Python SDK**: cliente oficial para acceder a Supabase desde
+  Python. Está instalado como dependencia del proyecto, aunque actualmente los
+  endpoints llaman a la API REST de Supabase con `workers.fetch` para que la
+  petición funcione en Workers.
+- **workers-py**: herramientas de desarrollo de Cloudflare para preparar y
+  ejecutar Python Workers.
+
+Las dependencias necesarias para el Worker se declaran en
+`pyproject.toml`; `uv.lock` registra las versiones resueltas. `Pipfile` se
+incluye como alternativa para preparar un entorno local con Pipenv, pero no
+reemplaza `pyproject.toml` para empaquetar y ejecutar el Worker.
+
+## Instalación alternativa con Pipenv
+
+Si ya usas Pipenv, desde `Backend` ejecuta:
+
+```powershell
+python -m pip install pipenv
+pipenv install --dev
 ```
 
 y posteriormente:

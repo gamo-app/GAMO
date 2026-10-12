@@ -4,11 +4,12 @@ version = "0.1.0"
 description = "Gamo API"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.142.2",
-    "supabase>=2.32.0",
+"fastapi>=0.142.2",
+"supabase>=2.32.0",
 ]
 
 [dependency-groups]
 dev = [
-    "workers-py",
+"workers-py",
+"workers-runtime-sdk",
 ]

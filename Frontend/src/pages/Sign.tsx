@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import {  useNavigate } from "react-router-dom";
 import Header from "../components/Header";
-
+import Fecha from "../components/Fecha";
+import Main from "../components/Main";
 function Sign() {
+  
   const [paso, setPaso] = useState(1);
   const navigate = useNavigate();
 
@@ -26,7 +28,7 @@ function Sign() {
   };
 
   return (
-    <main className="login">
+    <Main>
       <Header />
 
       <section className="login">
@@ -60,15 +62,17 @@ function Sign() {
                 type="number"
                 placeholder="--------"
               />
-
-              <label htmlFor="fecha">Fecha de nacimiento</label>
-              <input
-                id="fecha"
+              <Fecha></Fecha>
+              
+<div className="divisorx">
+   <button
+                type="button"
                 className="blanco"
-                type="date"
-              />
-
-              <button
+                onClick={cancelar}
+              >
+                Cancelar
+              </button>
+<button
                 type="button"
                 className="azul"
                 onClick={siguiente}
@@ -76,13 +80,9 @@ function Sign() {
                 Siguiente
               </button>
 
-              <button
-                type="button"
-                className="blanco"
-                onClick={cancelar}
-              >
-                Cancelar
-              </button>
+             
+</div>
+              
             </div>
           )}
 
@@ -125,14 +125,8 @@ function Sign() {
                 type="password"
                 placeholder="-----"
               />
+<div className="divisorx">
 
-              <button
-                type="button"
-                className="azul"
-                onClick={crearCuenta}
-              >
-                Crear cuenta
-              </button>
 
               <button
                 type="button"
@@ -141,36 +135,25 @@ function Sign() {
               >
                 Atrás
               </button>
-
-              <button
+               <button
                 type="button"
-                className="blanco"
-                onClick={cancelar}
+                className="azul"
+                onClick={crearCuenta}
               >
-                Cancelar
+                Crear cuenta
               </button>
+</div>
+             
+
+             
             </div>
           )}
 
-          {/* OPCIONES DE LOGIN */}
-          <div className="bloque3">
-            <h4>¿Ya tiene una cuenta?</h4>
-
-            <Link to="/" className="blanco">
-              Iniciar sesión
-            </Link>
-
-            <button
-              type="button"
-              className="blanco icono"
-            >
-              Iniciar sesión con Google
-            </button>
-          </div>
+         
 
         </form>
       </section>
-    </main>
+  </Main>
   );
 }
 
