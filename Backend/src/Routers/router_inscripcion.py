@@ -1,28 +1,10 @@
-from fastapi import HTTPException, APIRouter, Request
-
-from supabase_config import get_supabase_config
-from workers import fetch
+from fastapi import APIRouter, Request
+from Base import base_inscripcion as inscripcion
 
 router = APIRouter()
 
 
 @router.get("")
 async def get_inscripcion(request: Request):
-    return await get_all_inscripcion(request.scope["env"])
+    return await inscripcion.get_all_inscripciones(request.scope["env"])
     
-async def get_all_inscripcion(env):
-    url, key = get_supabase_config(env)
-    response = await fetch(
-        f"{url}/rest/v1/inscripcion?select=*",
-            headers={
-                "apikey": key,
-                "Authorization": f"Bearer {key}",
-            },
-        )
- 
-    if not response.ok:
-                raise HTTPException(
-                    status_code=response.status,
-                    detail=await response.text(),
-                )    
-    return await response.json()    
