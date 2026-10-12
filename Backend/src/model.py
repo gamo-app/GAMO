@@ -103,3 +103,7 @@ class SocioAltaCreate(BaseModel):
     persona: PersonaCreate
     usuario: UsuarioCreate
     id_plan: int = Field(gt=0)    
+
+class LoginData(BaseModel):
+    email: str
+    password: str
