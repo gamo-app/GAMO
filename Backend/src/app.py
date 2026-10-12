@@ -1,6 +1,20 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from Socios import asistencia,clase,cuota,deporte,grupos_roles,importacion,inscripcion,persona,profesor,representante,sede,socio,usuario
+from Routers import (
+    router_asistencia as asistencia,
+    router_clase as clase,
+    router_cuota as cuota,
+    router_deporte as deporte,
+    router_grupos_roles as grupos_roles,
+    router_importacion as importacion,
+    router_inscripcion as inscripcion,
+    router_persona as persona,
+    router_profesor as profesor,
+    router_representante as representante,
+    router_sede as sede,
+    router_socio as socio,
+    router_usuario as usuario,
+)
 
 
 @asynccontextmanager
@@ -71,5 +85,4 @@ app.include_router(usuario.router,
                    prefix='/usuario',
                    tags=['Usuario'],
                    responses={404: {"Usuario": "Not Found"}})
-
 
