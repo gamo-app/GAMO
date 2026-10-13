@@ -15,7 +15,7 @@ const FORM_INICIAL = {
 
 export default function Recepcion() {
   const [formData, setFormData] = useState(FORM_INICIAL);
-  const [sedes, setSedes] = useState([]); // 2. Estado para almacenar las sedes de Supabase
+  const [sedes, setSedes] = useState([]); 
   const [cargandoSedes, setCargandoSedes] = useState(true);
   const [mensaje, setMensaje] = useState(null);
   const [error, setError] = useState(null);
