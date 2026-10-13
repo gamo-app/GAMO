@@ -19,7 +19,15 @@ async def get_socios(request: Request):
     except  HTTPException as e:
         raise HTTPException(400, detail=e.args) 
     
-    
+@router.get("/estado-pago/{id_ususario}")
+async def get_estado_pago(request: Request, id_ususario: int):
+    #falta la auth del usuario para saber si tiene permisos 
+    try:
+        return await socio.get_estado_pago(request.scope["env"], id_ususario)
+    except  HTTPException as e:
+        raise HTTPException(400, detail=e.args)
+
+@router.patch("/estado-pago/{id_ususario}/{estado}")
 
 #----------------------------------------#
 
@@ -34,7 +42,13 @@ async def get_socios_estado(request: Request, rol: str, estado: str):
     
 
 #----------------------------------------#
-
+@router.get("/nombre-y-apellido/{nombre}/{apellido}")
+async def get_socio_by_name(request: Request, nombre: str, apellido: str):
+    #falta la auth del usuario para saber si tiene permisos 
+    try:
+        return await socio.get_socio_by_name(request.scope["env"], nombre, apellido)
+    except  HTTPException as e:
+        raise HTTPException(400, detail=e.args) 
 
 
 #Cambiar el estado de un socio

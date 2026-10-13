@@ -60,3 +60,43 @@ async def actualizar_estado_usuario_general(env, id_persona: int, estado: str):
     raise HTTPException(status_code=response.status, detail=await response.text())
   resultado = await response.json()
   return {"status": "success", "message": "Estado actualizado correctamente", "data": resultado}
+
+
+async def get_socio_by_name(env, nombre: str, apellido: str):
+    nombre = nombre + "*"
+    apellido = apellido + "*"
+    url, key = get_supabase_config(env)
+    response = await fetch(
+        f"{url}/rest/v1/socio?select=*&persona.nombre=ilike.{nombre}&persona.apellido=ilike.{apellido}",
+        headers={
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+        },
+    )
+
+    if not response.ok:
+        raise HTTPException(
+            status_code=response.status,
+            detail=await response.text(),
+        )
+
+    return await response.json()
+
+'''
+async def get_estado_pago(env, id_usuario: int):
+    url, key = get_supabase_config(env)
+    response = await fetch(
+        f"{url}/rest/v1/estado_pago?select=*&id_usuario=eq.{id_usuario}",
+        headers={
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+        },
+    )
+
+    if not response.ok:
+        raise HTTPException(
+            status_code=response.status,
+            detail=await response.text(),
+        )
+
+    return await response.json()'''
