@@ -41,7 +41,8 @@ function Login() {
 
       <section className="login">
         <div className="listabloques">
-          <form className="bloque" onSubmit={handleLogin}>
+          <form className="bloque espaciado" onSubmit={handleLogin}>
+            <div className="input">
             <label htmlFor="correo">Correo</label>
             <input
               id="correo"
@@ -52,17 +53,21 @@ function Login() {
               onChange={(e) => setCorreo(e.target.value)}
               required
             />
-
+            </div>
+           
+            <div className="input">
             <label htmlFor="contrasena">Contraseña</label>
-            <input
-              id="contrasena"
-              className="blanco"
-              type="password"
-              placeholder="-----"
-              value={contrasena}
-              onChange={(e) => setContrasena(e.target.value)}
-              required
-            />
+                        <input
+                          id="contrasena"
+                          className="blanco"
+                          type="password"
+                          placeholder="-----"
+                          value={contrasena}
+                          onChange={(e) => setContrasena(e.target.value)}
+                          required
+                        />
+            </div>
+            
 
             {error && <p role="alert">{error}</p>}
 

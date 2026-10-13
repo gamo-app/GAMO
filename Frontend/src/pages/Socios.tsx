@@ -5,7 +5,7 @@ import Main from "../components/Main";
 import Socioparticular from "./Socioparticular";
 import { getSocios } from "../database/Api";
 import { useState, useEffect } from "react";
-import { useParams,Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 
 type SocioData = {
   id_socio: number;
@@ -26,58 +26,57 @@ function Socios() {
   const [respuesta, setRespuesta] = useState<SocioData[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  // Estados de los filtros
+  // Filtros
+  const [busqueda, setBusqueda] = useState("");
   const [sede, setSede] = useState("");
   const [estado, setEstado] = useState("");
-  const [nombre, setNombre] = useState("");
-  const [apellido, setApellido] = useState("");
 
- useEffect(() => {
-  getSocios<SocioData[]>()
-    .then((resultado) => {
-      setRespuesta(resultado);
-    })
-    .catch((error) => {
-      console.error("Error al cargar socios:", error);
-    })
-    .finally(() => {
-      setCargando(false);
-    });
-}, []);
+  useEffect(() => {
+    getSocios<SocioData[]>()
+      .then((resultado) => {
+        setRespuesta(resultado);
+      })
+      .catch((error) => {
+        console.error("Error al cargar socios:", error);
+      })
+      .finally(() => {
+        setCargando(false);
+      });
+  }, []);
 
-  // Filtrar socios
+  // Buscar por nombre, apellido, DNI o teléfono
   const sociosFiltrados = respuesta.filter((socio) => {
+    const texto = busqueda.trim().toLowerCase();
+
+    const coincideBusqueda =
+      texto === "" ||
+      `${socio.nombre} ${socio.apellido}`.toLowerCase().includes(texto) ||
+      `${socio.apellido} ${socio.nombre}`.toLowerCase().includes(texto) ||
+      socio.dni.includes(texto) ||
+      socio.telefono.includes(texto);
+
     const coincideSede =
       sede === "" || socio.id_sede === Number(sede);
 
+    const estadoSocio = socio.estado.toLowerCase().trim();
+
     const coincideEstado =
       estado === "" ||
-      socio.estado.toLowerCase() === estado.toLowerCase();
+      (estado === "morosos"
+        ? false // Reemplazar cuando tengas el dato real de deuda
+        : estadoSocio === estado);
 
-    const coincideNombre = socio.nombre
-      .toLowerCase()
-      .includes(nombre.trim().toLowerCase());
-
-    const coincideApellido = socio.apellido
-      .toLowerCase()
-      .includes(apellido.trim().toLowerCase());
-
-    return (
-      coincideSede &&
-      coincideEstado &&
-      coincideNombre &&
-      coincideApellido
-    );
+    return coincideBusqueda && coincideSede && coincideEstado;
   });
 
   if (id) {
-    const socio = respuesta.find(
-      (s) => s.id_socio === Number(id)
-    );
-
     if (cargando) {
       return <Main>Cargando socio...</Main>;
     }
+
+    const socio = respuesta.find(
+      (s) => s.id_socio === Number(id)
+    );
 
     if (!socio) {
       return <Main>Socio no encontrado</Main>;
@@ -86,64 +85,76 @@ function Socios() {
     return <Socioparticular socio={socio} />;
   }
 
+  const cambiarEstado = (nuevoEstado: string) => {
+    setEstado(nuevoEstado);
+  };
+
   return (
     <Main>
-        <Header />
+      <Header />
 
-      <section>
+      <section style={{ padding: "0" }}>
+        <div className="listabloques columnafija">
+          <div className="bloque persistente estirado">
+            <div className="divisorx setentatreinta">
+              <input
+                type="text"
+                className="blanco"
+                placeholder="Buscar nombre, apellido, DNI o teléfono..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
 
-        <div className="listabloques">
-          <div className="bloque">
-            <Link to="/agregarsocio" className="azul">
-                Agregar socio
+              <select
+                className="blanco"
+                value={sede}
+                onChange={(e) => setSede(e.target.value)}
+              >
+                <option value="">Todas las sedes</option>
+
+                {Array.from(
+                  new Set(respuesta.map((socio) => socio.id_sede))
+                )
+                  .sort((a, b) => a - b)
+                  .map((idSede) => (
+                    <option key={idSede} value={idSede}>
+                      Sede {idSede}
+                    </option>
+                  ))}
+              </select>
+
+              <Link to="/agregarsocio" className="azul pc">
+                Agregar nuevo socio
               </Link>
+            </div>
 
-            <details className="azul">
-              <summary>Filtrar socios</summary>
-
-              <div className="listay2">
-                <select
-                  className="blanco"
-                  value={sede}
-                  onChange={(e) => setSede(e.target.value)}
-                >
-                  <option value="">Todas las sedes</option>
-                  <option value="1">Sede 1</option>
-                  <option value="2">Sede 2</option>
-                </select>
-
-                <select
-                  className="blanco"
-                  value={estado}
-                  onChange={(e) => setEstado(e.target.value)}
-                >
-                  <option value="">Mostrar todos</option>
-                  <option value="activo">Activos</option>
-                  <option value="inactivo">Inactivos</option>
-                </select>
-
-                <div className="divisorx">
-                  <input
-                    className="blanco"
-                    type="text"
-                    placeholder="Nombre"
-                    value={nombre}
-                    onChange={(e) => setNombre(e.target.value)}
-                  />
-
-                  <input
-                    className="blanco"
-                    type="text"
-                    placeholder="Apellido"
-                    value={apellido}
-                    onChange={(e) => setApellido(e.target.value)}
-                  />
-                </div>
+            <div className="listax overflow">
+              <div className="contenidolista">
+                {[
+                  { texto: "Todos", valor: "" },
+                  { texto: "Morosos", valor: "morosos" },
+                  { texto: "Inactivos", valor: "inactivo" },
+                  { texto: "Activos", valor: "activo" },
+                ].map((filtro) => (
+                  <button
+                    key={filtro.texto}
+                    type="button"
+                    className={`${
+                      estado === filtro.valor ? "azul" : "blanco"
+                    } miniboton`}
+                    onClick={() => cambiarEstado(filtro.valor)}
+                  >
+                    {filtro.texto}
+                  </button>
+                ))}
               </div>
-            </details>
+            </div>
+          </div>
 
+          <div className="bloque estirado">
             {cargando ? (
               <>
+                <Socio carga={true} />
                 <Socio carga={true} />
                 <Socio carga={true} />
                 <Socio carga={true} />
@@ -161,12 +172,17 @@ function Socios() {
               sociosFiltrados.map((socio) => (
                 <Socio
                   key={socio.id_socio}
-                  nombre={`${socio.nombre} ${socio.apellido}`}
+                  socio={socio}
                   carga={false}
-                  id={socio.id_socio}
                 />
               ))
             )}
+
+            <br />
+
+            <Link to="/agregarsocio" className="azul mobile">
+              Agregar nuevo socio
+            </Link>
           </div>
         </div>
       </section>

@@ -33,7 +33,8 @@ function Fecha() {
 
   return (
     <>
-      <label htmlFor="fecha">Fecha de nacimiento</label>
+    <div className="input">
+<label htmlFor="fecha">Fecha de nacimiento</label>
 
       <div className="inputfecha">
         {/* Día */}
@@ -116,6 +117,8 @@ function Fecha() {
           ))}
         </select>
       </div>
+    </div>
+      
     </>
   );
 }

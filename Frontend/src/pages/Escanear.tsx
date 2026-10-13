@@ -54,11 +54,11 @@ function Escanear() {
 
   return (
     <Main>
-  <Header></Header>
+       <Header atras></Header>
+
 
 <section className="escanear">
  
-      
       <div className="texto-escanear">
         
       </div>

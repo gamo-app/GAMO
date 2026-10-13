@@ -18,6 +18,7 @@ import WhatsApp from "../assets/svg/whatsapp.svg?raw";
 import Telefono from "../assets/svg/telefono.svg?raw";
 import Atras from "../assets/svg/atras.svg?raw";
 import Notificacion from "../assets/svg/notificaciones.svg?raw";
+import Eliminar from "../assets/svg/eliminar.svg?raw";
 
 interface IconProps {
   tipo?: number;
@@ -52,6 +53,7 @@ function Icon({
     Telefono,     //17
     Atras,        //18
     Notificacion ,//19
+    Eliminar,     //20
   ];
 
   const colores = [

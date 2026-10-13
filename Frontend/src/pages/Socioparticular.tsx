@@ -2,6 +2,7 @@ import NavBar from "../components/Navbar";
 import Icon from "../components/Icon";
 import Main from "../components/Main";
 import { Link } from "react-router-dom";
+import Header from "../components/Header"
 
 type SocioData = {
   id_socio: number;
@@ -29,12 +30,7 @@ const meses = [
 ];
   return (
     <Main>
-       <header className="h2">
-          <h1>Mi socio</h1>
-          <Link to="/socios" className="circuloazul2">
-            <Icon tipo={18} tamaño={2} />
-          </Link>
-        </header>
+       <Header atras={true}></Header>
       <section>
        
 

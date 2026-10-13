@@ -36,32 +36,38 @@ function Sign() {
 
           {/* PASO 1 */}
           {paso === 1 && (
-            <div className="bloque">
-              <h2>Datos personales</h2>
-
-              <label htmlFor="nombre">Nombre</label>
+            <div className="bloque espaciado">
+<div className="input">
+  <label htmlFor="nombre">Nombre</label>
               <input
                 id="nombre"
                 className="blanco"
                 type="text"
                 placeholder="Luciano"
               />
-
-              <label htmlFor="apellido">Apellido</label>
+</div>
+            
+<div className="input">
+<label htmlFor="apellido">Apellido</label>
               <input
                 id="apellido"
                 className="blanco"
                 type="text"
                 placeholder="Barbini"
               />
-
-              <label htmlFor="dni">DNI</label>
+</div>
+              
+<div className="input">
+  <label htmlFor="dni">DNI</label>
               <input
                 id="dni"
                 className="blanco"
                 type="number"
                 placeholder="--------"
               />
+</div>
+              
+
               <Fecha></Fecha>
               
 <div className="divisorx">
@@ -88,34 +94,39 @@ function Sign() {
 
           {/* PASO 2 */}
           {paso === 2 && (
-            <div className="bloque">
-              <h2>Datos de acceso</h2>
-
-              <label htmlFor="telefono">Teléfono</label>
+            <div className="bloque espaciado">
+<div className="input">
+ <label htmlFor="telefono">Teléfono</label>
               <input
                 id="telefono"
                 className="blanco"
                 type="tel"
                 placeholder="11 ---- ----"
               />
-
-              <label htmlFor="correo">Correo</label>
+</div>
+             
+<div className="input">
+   <label htmlFor="correo">Correo</label>
               <input
                 id="correo"
                 className="blanco"
                 type="email"
                 placeholder="correo@mail.com"
               />
-
-              <label htmlFor="password">Contraseña</label>
+</div>
+             
+<div className="input">
+  <label htmlFor="password">Contraseña</label>
               <input
                 id="password"
                 className="blanco"
                 type="password"
                 placeholder="-----"
               />
-
-              <label htmlFor="confirmarPassword">
+</div>
+              
+<div className="input">
+   <label htmlFor="confirmarPassword">
                 Confirmar contraseña
               </label>
 
@@ -125,7 +136,10 @@ function Sign() {
                 type="password"
                 placeholder="-----"
               />
+</div>
+
 <div className="divisorx">
+             
 
 
               <button

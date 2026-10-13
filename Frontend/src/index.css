@@ -212,6 +212,16 @@ span{
   margin-bottom: 2vh;
 
 }
+.espaciado{
+  gap: 2vh;
+}
+.input{
+   width: 100%;
+  max-width: 50vh;
+  display:flex;
+  flex-direction: column;
+  gap: 0.5vh;
+}
 .bloque4{
   width: 100%;
   max-width: 50vh;
@@ -314,6 +324,11 @@ details.azul input.blanco,details.azul select.blanco {
   width: 100%;
 position:relative;
   flex-wrap: wrap;
+}
+.listabloques.columnafija{
+  flex-direction: column;
+
+  flex-wrap: nowrap;
 }
 .listax{
   display:flex;
@@ -491,7 +506,7 @@ display: none;
 .barra{
   width: 0.2vh;
   height: 5vh;
-  background-color: var(--grisoscuro);
+  background-color: var(--gris);
   border-radius: 1vh;
 }
 .cuadrado img{
@@ -517,7 +532,6 @@ button.azul{
   max-width: 50vh;
   border-radius: 3vh;
   font-weight: 500;
-  margin-top: 2vh;
   font-size: 1.6vh;
 }
 input, select,.finput{
@@ -537,7 +551,6 @@ input.blanco{
   max-width: 50vh;
   border-radius: 3vh;
   font-weight: 500;
-  margin-bottom: 2vh;
   font-size: 1.6vh;
 }
 .finput{
@@ -559,7 +572,6 @@ select.blanco{
   max-width: 50vh;
   border-radius: 3vh;
   font-weight: 500;
-  margin-bottom: 2vh;
   font-size: 1.6vh;
 }
 .inputfecha{
@@ -578,6 +590,31 @@ select.blanco{
   gap: 1.5vh;
     justify-content: center;
   align-items: center;
+}
+.azul.miniboton,.blanco.miniboton{
+  width: max-content;
+  height:  max-content;
+  padding: 1.2vh;
+  padding-left: 1.6vh;
+  padding-right: 1.6vh;
+}
+.persistente{
+  position: sticky;
+  top: 0vh;
+  z-index: 100;
+  padding-top: 2vh;
+  padding-bottom: 1vh;
+  background-color: var(--gris);
+}
+
+.overflow{
+  overflow: auto;
+}
+.contenidolista{
+ width: max-content;
+  height:  max-content;
+  display: flex;
+  gap: 1vh;
 }
 .iconoperfil{
   overflow: hidden;
@@ -613,7 +650,6 @@ a.azul{
   max-width: 50vh;
   border-radius: 3vh;
   font-weight: 500;
-  margin-top: 2vh;
   font-size: 1.6vh;
 }
 a.azul2{
@@ -642,6 +678,35 @@ a.circuloazul{
   font-weight: 500;
   font-size: 1.6vh;
 }
+a.circulorojo{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width:4vh;
+  height: 4vh;
+  background-color: var(--rojo);
+  color: var(--siempreblanco);
+  max-width: 50vh;
+  border-radius: 3vh;
+  font-weight: 500;
+  font-size: 1.6vh;
+}
+button.circuloazul2{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width:5vh;
+  height: 5vh;
+  background-color: var(--azul);
+  color: var(--siempreblanco);
+  max-width: 50vh;
+  border-radius: 3vh;
+  font-weight: 500;
+  font-size: 1.6vh;
+}
+button.circuloazul2 img.icon{
+  margin-bottom: 0.2vh;
+}
 a.circuloazul2{
   display: flex;
   justify-content: center;
@@ -669,7 +734,7 @@ a.rojo{
   max-width: 50vh;
   border-radius: 3vh;
   font-weight: 500;
-  margin-top: 2vh;
+ 
   font-size: 1.6vh;
 }
 a.blanco{
@@ -684,7 +749,7 @@ a.blanco{
   max-width: 50vh;
   border-radius: 3vh;
   font-weight: 500;
-  margin-top: 2vh;
+ 
   font-size: 1.6vh;
 }
 button.blanco{
@@ -699,7 +764,6 @@ button.blanco{
   max-width: 50vh;
   border-radius: 3vh;
   font-weight: 500;
-  margin-top: 2vh;
   font-size: 1.6vh;
 }
 
@@ -737,7 +801,7 @@ a.escanear{
 
 
 .texto2{
-
+max-width: 22vh;
   height: 4vh;
   display:flex;
   gap: 0.5vh;

@@ -10,7 +10,7 @@ import User from './pages/User'
 import './animations.css'
 import './index.css'
 import './responsive.css'
-//import Escanear from './pages/Escanear'
+import Escanear from './pages/Escanear'
 import Sign from './pages/Sign'
 import Error from './pages/404'
 import Socios from './pages/Socios'
@@ -30,7 +30,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/socios/:id" element={<Socios />} />
         <Route path="/agregarsocio" element={<Agregarsocio />} />
         <Route path="/usuario" element={<User />} />
-        <Route path="/escanear" element={<Home />} />
+        <Route path="/escanear" element={<Escanear />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>
