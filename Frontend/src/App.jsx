@@ -9,7 +9,7 @@ function App() {
   return (
     <main style={{ padding: "20px", fontFamily: "sans-serif" }}>
       <header style={{ textAlign: "center", marginBottom: "20px" }}>
-        <h1>Sistema de Gestión de Club</h1>
+        <h1>Sistema de Gestión</h1>
 
         {/* Botones para alternar entre pantallas */}
         <div style={{ marginTop: "10px" }}>
