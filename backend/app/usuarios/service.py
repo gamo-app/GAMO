@@ -8,7 +8,7 @@ from supabase import Client
 
 logger = logging.getLogger(__name__)
 
-ROLES_SEDE_OBLIGATORIA = {"socio"}
+ROLES_SEDE_OBLIGATORIA = {"socio", "profesor", "representante"}
 ROLES_CON_DEPORTE = {"representante"}
 TABLAS_ROL = ("socio", "profesor", "representante")
 

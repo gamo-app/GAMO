@@ -7,10 +7,12 @@ from .service import UsuarioBase, crear_usuario_completo
 
 router = APIRouter()
 
-
 class UsuarioCreateAdmin(UsuarioBase):
-    
     rol: Literal["socio", "profesor", "representante"]
+    id_sede: int = Field(
+        gt=0,
+        description="ID de la sede (obligatorio para cualquier alta desde Administración)",
+    )
     id_deporte: Optional[int] = Field(
         default=None,
         description="ID del deporte (obligatorio para representante)",
@@ -28,7 +30,7 @@ class UsuarioCreateAdmin(UsuarioBase):
     "",
     status_code=status.HTTP_201_CREATED,
     summary="Crear usuario (Administrador)",
-    description="Permite registrar usuarios con rol socio, profesor o representante.",
+    description="Permite registrar usuarios con rol socio, profesor o representante asignando obligatoriamente una sede.",
 )
 def crear_usuario(datos: UsuarioCreateAdmin, supabase: Client = Depends(get_supabase)):
     return crear_usuario_completo(supabase, datos)

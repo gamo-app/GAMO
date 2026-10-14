@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const API_URL = "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const FORM_INICIAL = {
   nombre: "",
@@ -68,6 +68,12 @@ export default function Admin() {
     e.preventDefault();
     setMensaje(null);
     setError(null);
+
+    if (!formData.id_sede) {
+      setError("Debés seleccionar una sede obligatoriamente.");
+      return;
+    }
+
     setEnviando(true);
 
     try {
@@ -80,7 +86,7 @@ export default function Admin() {
         email: formData.email.trim(),
         password: formData.password,
         rol: formData.rol,
-        id_sede: formData.id_sede ? parseInt(formData.id_sede, 10) : null,
+        id_sede: parseInt(formData.id_sede, 10),
         id_deporte: formData.rol === "representante" && formData.id_deporte 
           ? parseInt(formData.id_deporte, 10) 
           : null,
@@ -240,19 +246,18 @@ export default function Admin() {
           </div>
         )}
 
-        {/* Desplegable de Sedes */}
+        {/* Desplegable de Sedes (Siempre obligatorio en Admin) */}
         <div>
-          <label>Sede {formData.rol === "socio" ? "(Obligatoria):" : "(Opcional):"}</label>
+          <label>Sede (Obligatoria):</label>
           <select 
             name="id_sede" 
             value={formData.id_sede} 
             onChange={handleChange} 
-            required={formData.rol === "socio"}
+            required
             style={{ width: "100%", marginBottom: "10px" }}
           >
             {cargandoCatalogos && <option value="">Cargando sedes...</option>}
             {!cargandoCatalogos && sedes.length === 0 && <option value="">No hay sedes disponibles</option>}
-            {formData.rol !== "socio" && <option value="">Sin sede asignada</option>}
             {sedes.map((sede) => (
               <option key={sede.id_sede} value={sede.id_sede}>
                 {sede.nombre} {sede.direccion ? `(${sede.direccion})` : ""}
@@ -263,7 +268,7 @@ export default function Admin() {
 
         <button
           type="submit"
-          disabled={enviando}
+          disabled={enviando || sedes.length === 0}
           style={{ 
             width: "100%", 
             padding: "10px", 
