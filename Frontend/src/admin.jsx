@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const HOY = new Date().toISOString().split("T")[0];
 
 const FORM_INICIAL = {
   nombre: "",
@@ -10,9 +11,9 @@ const FORM_INICIAL = {
   fecha_nacimiento: "",
   email: "",
   password: "",
-  rol: "representante", 
-  id_sede: "",         
-  id_deporte: "",      
+  rol: "representante",
+  id_sede: "",
+  id_deporte: "",
 };
 
 export default function Admin() {
@@ -32,23 +33,26 @@ export default function Admin() {
           fetch(`${API_URL}/api/usuarios/deportes`),
         ]);
 
-        if (resSedes.ok) {
-          const dataSedes = await resSedes.json();
-          setSedes(dataSedes);
-          if (dataSedes.length > 0) {
-            setFormData((prev) => ({ ...prev, id_sede: String(dataSedes[0].id_sede) }));
-          }
+        if (!resSedes.ok || !resDeportes.ok) {
+          throw new Error("Error al consultar los catálogos de sedes o deportes.");
         }
 
-        if (resDeportes.ok) {
-          const dataDeportes = await resDeportes.json();
-          setDeportes(dataDeportes);
-          if (dataDeportes.length > 0) {
-            setFormData((prev) => ({ ...prev, id_deporte: String(dataDeportes[0].id_deporte) }));
-          }
-        }
+        const [dataSedes, dataDeportes] = await Promise.all([
+          resSedes.json(),
+          resDeportes.json(),
+        ]);
+
+        setSedes(dataSedes);
+        setDeportes(dataDeportes);
+
+        setFormData((prev) => ({
+          ...prev,
+          id_sede: dataSedes.length > 0 ? String(dataSedes[0].id_sede) : "",
+          id_deporte: dataDeportes.length > 0 ? String(dataDeportes[0].id_deporte) : "",
+        }));
       } catch (err) {
         console.error("Error al cargar sedes o deportes:", err);
+        setError("No se pudieron cargar las sedes o los deportes. Verificá la conexión con el servidor.");
       } finally {
         setCargandoCatalogos(false);
       }
@@ -58,10 +62,11 @@ export default function Admin() {
   }, []);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -74,6 +79,11 @@ export default function Admin() {
       return;
     }
 
+    if (formData.rol === "representante" && !formData.id_deporte) {
+      setError("Debés seleccionar un deporte para el representante.");
+      return;
+    }
+
     setEnviando(true);
 
     try {
@@ -82,14 +92,15 @@ export default function Admin() {
         apellido: formData.apellido.trim(),
         dni: formData.dni.trim(),
         telefono: formData.telefono ? formData.telefono.trim() : null,
-        fecha_nacimiento: formData.fecha_nacimiento ? formData.fecha_nacimiento : null,
+        fecha_nacimiento: formData.fecha_nacimiento || null,
         email: formData.email.trim(),
         password: formData.password,
         rol: formData.rol,
         id_sede: parseInt(formData.id_sede, 10),
-        id_deporte: formData.rol === "representante" && formData.id_deporte 
-          ? parseInt(formData.id_deporte, 10) 
-          : null,
+        id_deporte:
+          formData.rol === "representante" && formData.id_deporte
+            ? parseInt(formData.id_deporte, 10)
+            : null,
       };
 
       const response = await fetch(`${API_URL}/api/usuarios/admin`, {
@@ -120,6 +131,12 @@ export default function Admin() {
     }
   };
 
+  const botonDeshabilitado =
+    enviando ||
+    cargandoCatalogos ||
+    sedes.length === 0 ||
+    (formData.rol === "representante" && deportes.length === 0);
+
   return (
     <div style={{ maxWidth: "480px", margin: "20px auto", padding: "20px", border: "1px solid #ccc", borderRadius: "8px" }}>
       <h2>Alta de Usuarios (Administración)</h2>
@@ -129,93 +146,96 @@ export default function Admin() {
       <form onSubmit={handleSubmit}>
         <div>
           <label>Nombre:</label>
-          <input 
-            type="text" 
-            name="nombre" 
-            value={formData.nombre} 
-            onChange={handleChange} 
-            required 
-            style={{ width: "100%", marginBottom: "10px" }} 
+          <input
+            type="text"
+            name="nombre"
+            value={formData.nombre}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", marginBottom: "10px" }}
           />
         </div>
 
         <div>
           <label>Apellido:</label>
-          <input 
-            type="text" 
-            name="apellido" 
-            value={formData.apellido} 
-            onChange={handleChange} 
-            required 
-            style={{ width: "100%", marginBottom: "10px" }} 
+          <input
+            type="text"
+            name="apellido"
+            value={formData.apellido}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", marginBottom: "10px" }}
           />
         </div>
 
         <div>
           <label>DNI:</label>
-          <input 
-            type="text" 
-            name="dni" 
-            value={formData.dni} 
-            onChange={handleChange} 
-            required 
-            style={{ width: "100%", marginBottom: "10px" }} 
+          <input
+            type="text"
+            name="dni"
+            value={formData.dni}
+            onChange={handleChange}
+            required
+            pattern="\d{7,9}"
+            title="Ingresá entre 7 y 9 números, sin puntos ni espacios"
+            style={{ width: "100%", marginBottom: "10px" }}
           />
         </div>
 
         <div>
           <label>Teléfono:</label>
-          <input 
-            type="text" 
-            name="telefono" 
-            value={formData.telefono} 
-            onChange={handleChange} 
-            style={{ width: "100%", marginBottom: "10px" }} 
+          <input
+            type="text"
+            name="telefono"
+            value={formData.telefono}
+            onChange={handleChange}
+            style={{ width: "100%", marginBottom: "10px" }}
           />
         </div>
 
         <div>
           <label>Fecha de Nacimiento:</label>
-          <input 
-            type="date" 
-            name="fecha_nacimiento" 
-            value={formData.fecha_nacimiento} 
-            onChange={handleChange} 
-            style={{ width: "100%", marginBottom: "10px" }} 
+          <input
+            type="date"
+            name="fecha_nacimiento"
+            value={formData.fecha_nacimiento}
+            onChange={handleChange}
+            max={HOY}
+            style={{ width: "100%", marginBottom: "10px" }}
           />
         </div>
 
         <div>
           <label>Email:</label>
-          <input 
-            type="email" 
-            name="email" 
-            value={formData.email} 
-            onChange={handleChange} 
-            required 
-            style={{ width: "100%", marginBottom: "10px" }} 
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", marginBottom: "10px" }}
           />
         </div>
 
         <div>
           <label>Contraseña:</label>
-          <input 
-            type="password" 
-            name="password" 
-            value={formData.password} 
-            onChange={handleChange} 
-            required 
-            minLength={6} 
-            style={{ width: "100%", marginBottom: "10px" }} 
+          <input
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            minLength={6}
+            style={{ width: "100%", marginBottom: "10px" }}
           />
         </div>
 
         <div>
           <label>Rol:</label>
-          <select 
-            name="rol" 
-            value={formData.rol} 
-            onChange={handleChange} 
+          <select
+            name="rol"
+            value={formData.rol}
+            onChange={handleChange}
             style={{ width: "100%", marginBottom: "10px" }}
           >
             <option value="representante">Representante</option>
@@ -224,14 +244,13 @@ export default function Admin() {
           </select>
         </div>
 
-        {/* Desplegable de Deportes (Solo para Representante) */}
         {formData.rol === "representante" && (
           <div>
             <label>Deporte asignado:</label>
-            <select 
-              name="id_deporte" 
-              value={formData.id_deporte} 
-              onChange={handleChange} 
+            <select
+              name="id_deporte"
+              value={formData.id_deporte}
+              onChange={handleChange}
               required
               style={{ width: "100%", marginBottom: "10px" }}
             >
@@ -246,13 +265,12 @@ export default function Admin() {
           </div>
         )}
 
-        {/* Desplegable de Sedes (Siempre obligatorio en Admin) */}
         <div>
           <label>Sede (Obligatoria):</label>
-          <select 
-            name="id_sede" 
-            value={formData.id_sede} 
-            onChange={handleChange} 
+          <select
+            name="id_sede"
+            value={formData.id_sede}
+            onChange={handleChange}
             required
             style={{ width: "100%", marginBottom: "10px" }}
           >
@@ -268,15 +286,15 @@ export default function Admin() {
 
         <button
           type="submit"
-          disabled={enviando || sedes.length === 0}
-          style={{ 
-            width: "100%", 
-            padding: "10px", 
-            background: enviando ? "#7aa7d9" : "#28a745", 
-            color: "white", 
-            border: "none", 
-            borderRadius: "4px", 
-            cursor: enviando ? "not-allowed" : "pointer" 
+          disabled={botonDeshabilitado}
+          style={{
+            width: "100%",
+            padding: "10px",
+            background: botonDeshabilitado ? "#7aa7d9" : "#28a745",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: botonDeshabilitado ? "not-allowed" : "pointer",
           }}
         >
           {enviando ? "Registrando..." : "Registrar Usuario (Admin)"}

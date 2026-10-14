@@ -46,18 +46,17 @@ class UsuarioBase(BaseModel):
         return v.lower()
 
 
-def _rollback(supabase: Client, user_id: Optional[str], id_persona: Optional[int]):
+def _rollback(supabase: Client, user_id: Optional[str], id_persona: Optional[int], rol: str):
     """Deshace los registros creados en orden inverso si ocurre algún fallo."""
     try:
         if id_persona is not None:
-            for tabla in (*TABLAS_ROL, "usuario"):
-                supabase.table(tabla).delete().eq("id_persona", id_persona).execute()
+            supabase.table(rol).delete().eq("id_persona", id_persona).execute()
+            supabase.table("usuario").delete().eq("id_persona", id_persona).execute()
             supabase.table("persona").delete().eq("id_persona", id_persona).execute()
         if user_id:
             supabase.auth.admin.delete_user(user_id)
     except Exception:
         logger.exception("Error durante rollback (id_persona=%s, user_id=%s)", id_persona, user_id)
-
 
 def _existe_activo(supabase: Client, tabla: str, columna: str, valor) -> bool:
     """Verifica si un registro existe y se encuentra activo en la base de datos."""
@@ -157,10 +156,10 @@ def crear_usuario_completo(supabase: Client, datos: UsuarioBase) -> dict:
         }
 
     except HTTPException:
-        _rollback(supabase, user_id, id_persona)
+        _rollback(supabase, user_id, id_persona, rol)
         raise
     except Exception as e:
-        _rollback(supabase, user_id, id_persona)
+        _rollback(supabase, user_id, id_persona, rol)
         logger.exception("Error al registrar el usuario")
 
         texto = str(e).lower()
