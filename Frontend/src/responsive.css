@@ -28,15 +28,7 @@ footer{
     max-width: 100%;
 }
 
-.setentatreinta :nth-child(1){
-max-width: 100%;
-}
-.setentatreinta :nth-child(2){
-width: 40%;
-}
-.setentatreinta :nth-child(3){
-width: 40%;
-}
+
 header{
     padding-left: 2%;
     padding-right: 2%;
