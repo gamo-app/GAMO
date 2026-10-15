@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.socios.sfiltro import router as socios_router
+from app.socios import router as socios_router
 from app.usuarios import router as usuarios_router
 
 app = FastAPI()

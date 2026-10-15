@@ -1,0 +1,2599 @@
+﻿=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\backend\app\socios\sfiltro.py ===
+import logging
+import math
+import re
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from postgrest.exceptions import APIError
+from pydantic import BaseModel
+from supabase import Client
+
+from app.database import get_supabase
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+
+
+class SocioResponse(BaseModel):
+    id_socio: Optional[int] = None
+    codigo_credencial: Optional[str] = None
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    dni: Optional[str] = None
+    telefono: Optional[str] = None
+    fecha_alta: Optional[str] = None
+    fecha_vencimiento: Optional[str] = None
+    estado_cuota: Optional[str] = "sin_cuota"
+    monto_cuota: Optional[float] = None
+
+
+class PaginacionInfo(BaseModel):
+    paginaActual: int
+    elementosPorPagina: int
+    totalPaginas: int
+    totalSocios: int
+
+
+class ListadoSociosResponse(BaseModel):
+    datos: List[SocioResponse]
+    paginacion: PaginacionInfo
+
+
+
+
+
+CAMPOS_TEXTO: Dict[str, str] = {
+    "nombre": "nombre",
+    "apellido": "apellido",
+}
+
+
+CAMPOS_NUMERICOS: Dict[str, str] = {
+    "dni": "dni",
+}
+
+
+SELECT_SOCIOS = (
+    "id_persona, nombre, apellido, dni, telefono, "
+    "socio!inner("
+    "id_socio, codigo_credencial, fecha_alta, "
+    "cuota(id_cuota, fecha_vencimiento, estado, monto)"
+    ")"
+)
+
+
+
+def _terminos_de_busqueda(buscar: Optional[str]) -> List[str]:
+    """Limpia caracteres especiales y devuelve hasta 5 palabras."""
+    if not buscar or not buscar.strip():
+        return []
+    limpio = re.sub(r'[,()%*_"\\]', " ", buscar.strip())
+    return limpio.split()[:5]
+
+def _condiciones_para(palabra: str) -> List[str]:
+    condiciones = [f"{col}.ilike.%{palabra}%" for col in CAMPOS_TEXTO.values()]
+    if palabra.isascii() and palabra.isdigit() and len(palabra) <= 9:
+        condiciones += [f"{col}.eq.{palabra}" for col in CAMPOS_NUMERICOS.values()]
+    return condiciones
+
+def _ultima_cuota(cuotas: Any) -> Optional[Dict[str, Any]]:
+    if not cuotas:
+        return None
+    if isinstance(cuotas, dict):
+        return cuotas
+    return max(cuotas, key=lambda c: c.get("fecha_vencimiento") or "")
+
+def _texto(valor: Any) -> Optional[str]:
+    """Convierte a str (o None) para que Pydantic no rechace nÃºmeros."""
+    return None if valor is None else str(valor)
+
+def _armar_socio(persona: Dict[str, Any]) -> Dict[str, Any]:
+    """Aplana persona + socio + Ãºltima cuota en un solo diccionario."""
+    socio = persona.get("socio") or {}
+    if isinstance(socio, list):
+        socio = socio[0] if socio else {}
+
+    cuota = _ultima_cuota(socio.get("cuota")) or {}
+
+    return {
+        "id_socio": socio.get("id_socio"),
+        "codigo_credencial": _texto(socio.get("codigo_credencial")),
+        "nombre": persona.get("nombre"),
+        "apellido": persona.get("apellido"),
+        "dni": _texto(persona.get("dni")),
+        "telefono": _texto(persona.get("telefono")),
+        "fecha_alta": socio.get("fecha_alta"),
+        "fecha_vencimiento": cuota.get("fecha_vencimiento"),
+        "estado_cuota": cuota.get("estado") or "sin_cuota",
+        "monto_cuota": cuota.get("monto"),
+    }
+
+
+def _error_bd(e: APIError) -> HTTPException:
+    """Loguea el detalle real y devuelve un error genÃ©rico al cliente."""
+    logger.error("Supabase APIError | code=%s | message=%s | details=%s",
+                 e.code, e.message, e.details)
+    return HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail="Error al consultar los socios",
+    )
+
+
+
+
+@router.get("", response_model=ListadoSociosResponse)
+def obtener_socios_paginados(
+    page: int = Query(1, ge=1, description="NÃºmero de pÃ¡gina"),
+    limit: int = Query(10, ge=1, le=100, description="Cantidad de socios por pÃ¡gina"),
+    buscar: Optional[str] = Query(
+        None, max_length=50, description="Texto a buscar en nombre, apellido o DNI"
+    ),
+    supabase: Client = Depends(get_supabase),
+):
+    inicio = (page - 1) * limit
+    fin = inicio + limit - 1
+
+    consulta = supabase.table("persona").select(SELECT_SOCIOS, count="exact")
+
+    
+    for palabra in _terminos_de_busqueda(buscar):
+        consulta = consulta.or_(",".join(_condiciones_para(palabra)))
+
+    try:
+        respuesta = (
+            consulta
+            .order("apellido", desc=False)
+            .order("id_persona", desc=False)
+            .range(inicio, fin)
+            .execute()
+        )
+        filas = respuesta.data or []
+        total_socios = respuesta.count or 0
+
+    except APIError as e:
+        if e.code != "PGRST103":
+            raise _error_bd(e)
+        
+        try:
+            respuesta = consulta.range(0, 0).execute()
+        except APIError as e2:
+            raise _error_bd(e2)
+        filas = []
+        total_socios = respuesta.count or 0
+
+    except Exception:
+        logger.exception("Error no controlado al obtener los socios")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno al obtener los socios",
+        )
+
+    datos = [_armar_socio(fila) for fila in filas]
+    total_paginas = math.ceil(total_socios / limit) if total_socios else 0
+
+    return {
+        "datos": datos,
+        "paginacion": {
+            "paginaActual": page,
+            "elementosPorPagina": limit,
+            "totalPaginas": total_paginas,
+            "totalSocios": total_socios,
+        },
+    }
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\backend\app\socios\__init__.py ===
+from .sfiltro import router
+
+__all__ = ["router"]
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\backend\app\usuarios\admin.py ===
+from typing import Literal, Optional
+from fastapi import APIRouter, Depends, status
+from pydantic import Field, field_validator
+from supabase import Client
+from app.database import get_supabase
+from .service import UsuarioBase, crear_usuario_completo
+
+router = APIRouter()
+
+class UsuarioCreateAdmin(UsuarioBase):
+    rol: Literal["socio", "profesor", "representante"]
+    id_sede: int = Field(
+        gt=0,
+        description="ID de la sede (obligatorio para cualquier alta desde AdministraciÃ³n)",
+    )
+    id_deporte: Optional[int] = Field(
+        default=None,
+        description="ID del deporte (obligatorio para representante)",
+    )
+
+    @field_validator("id_deporte", mode="before")
+    @classmethod
+    def normalizar_deporte(cls, v):
+        if v is None or v == "" or (isinstance(v, int) and v <= 0):
+            return None
+        return v
+
+
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear usuario (Administrador)",
+    description="Permite registrar usuarios con rol socio, profesor o representante asignando obligatoriamente una sede.",
+)
+def crear_usuario(datos: UsuarioCreateAdmin, supabase: Client = Depends(get_supabase)):
+    return crear_usuario_completo(supabase, datos)
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\backend\app\usuarios\recepcion.py ===
+from typing import Literal
+from fastapi import APIRouter, Depends, status
+from supabase import Client
+from app.database import get_supabase
+from .service import UsuarioBase, crear_usuario_completo
+
+router = APIRouter()
+
+
+class UsuarioCreateRecepcion(UsuarioBase):
+   
+    rol: Literal["socio", "profesor"]
+
+
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear usuario (RecepciÃ³n)",
+    description="Permite registrar exclusivamente usuarios con rol socio o profesor.",
+)
+def crear_usuario(datos: UsuarioCreateRecepcion, supabase: Client = Depends(get_supabase)):
+    return crear_usuario_completo(supabase, datos)
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\backend\app\usuarios\service.py ===
+import hashlib
+import logging
+import os
+import re
+from datetime import date
+from typing import Optional
+
+from fastapi import HTTPException
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from supabase import Client
+
+logger = logging.getLogger(__name__)
+
+
+ROLES_SEDE_OBLIGATORIA = {"socio", "profesor", "representante"}
+
+ROLES_CON_DEPORTE = {"representante"}
+
+PK_POR_ROL = {
+    "socio": "id_socio",
+    "profesor": "id_profesor",
+    "representante": "id_representante",
+}
+
+
+def _generar_hash_y_salt(password: str) -> tuple[str, str]:
+    """
+    Genera un salt aleatorio de 16 bytes y el hash PBKDF2-HMAC-SHA256.
+    Devuelve (hash_hex, salt_bytea_hex) listo para insertar en PostgreSQL/Supabase.
+    """
+    salt_bytes = os.urandom(16)
+    hash_hex = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt_bytes,
+        100_000,
+    ).hex()
+    
+    salt_bytea = f"\\x{salt_bytes.hex()}"
+    return hash_hex, salt_bytea
+
+
+class UsuarioBase(BaseModel):
+    """Esquema base con los atributos comunes a todos los usuarios."""
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    nombre: str = Field(min_length=1, description="Nombre de la persona")
+    apellido: str = Field(min_length=1, description="Apellido de la persona")
+    dni: str = Field(pattern=r"^\d{7,9}$", description="NÃºmero de documento")
+    telefono: Optional[str] = Field(
+        default=None,
+        description="TelÃ©fono (se formatea automÃ¡ticamente a XX-XXXX-XXXX, ej: 11-5555-1000)",
+    )
+    fecha_nacimiento: Optional[date] = Field(
+        default=None,
+        description="Fecha de nacimiento en formato YYYY-MM-DD (ej: 1998-05-20)",
+    )
+    email: EmailStr
+    password: str = Field(min_length=6, description="ContraseÃ±a de al menos 6 caracteres")
+    rol: str = Field(description="Rol asignado al usuario")
+    id_sede: Optional[int] = Field(
+        default=None,
+        description="ID de la sede (obligatorio para socio, opcional para otros)",
+    )
+
+    @field_validator("telefono", mode="before")
+    @classmethod
+    def formatear_telefono(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v_str = str(v).strip()
+        if not v_str:
+            return None
+
+        
+        digitos = re.sub(r"\D", "", v_str)
+
+        
+        if digitos.startswith("549") and len(digitos) == 13:
+            digitos = digitos[3:]
+        elif digitos.startswith("54") and len(digitos) == 12:
+            digitos = digitos[2:]
+        elif digitos.startswith("0") and len(digitos) == 11:
+            digitos = digitos[1:]
+
+        
+        if len(digitos) == 8:
+            digitos = f"11{digitos}"
+
+        if len(digitos) != 10:
+            raise ValueError(
+                "El telÃ©fono debe contener 10 dÃ­gitos (ej: 1155551000 o 11-5555-1000)."
+            )
+
+        # Retornar en formato XX-XXXX-XXXX (ej: 11-7537-4712)
+        return f"{digitos[:2]}-{digitos[2:6]}-{digitos[6:]}"
+
+    @field_validator("id_sede", mode="before")
+    @classmethod
+    def normalizar_sede(cls, v):
+        if v is None or v == "" or (isinstance(v, int) and v <= 0):
+            return None
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def email_minusculas(cls, v: EmailStr) -> str:
+        return v.lower()
+
+
+def _rollback(supabase: Client, user_id: Optional[str], id_persona: Optional[int], rol: str):
+    """Deshace los registros creados en orden inverso si ocurre algÃºn fallo."""
+    try:
+        if id_persona is not None:
+            supabase.table(rol).delete().eq("id_persona", id_persona).execute()
+            supabase.table("usuario").delete().eq("id_persona", id_persona).execute()
+            supabase.table("persona").delete().eq("id_persona", id_persona).execute()
+        if user_id:
+            supabase.auth.admin.delete_user(user_id)
+    except Exception:
+        logger.exception("Error durante rollback (id_persona=%s, user_id=%s)", id_persona, user_id)
+
+
+def _existe_activo(supabase: Client, tabla: str, columna: str, valor) -> bool:
+    """Verifica si un registro existe y se encuentra activo en la base de datos."""
+    res = supabase.table(tabla).select(columna).eq(columna, valor).eq("activo", True).execute()
+    return bool(res.data)
+
+
+def crear_usuario_completo(supabase: Client, datos: UsuarioBase) -> dict:
+    """LÃ³gica unificada de negocio y persistencia en Supabase."""
+    rol = datos.rol
+    id_deporte = getattr(datos, "id_deporte", None) if rol in ROLES_CON_DEPORTE else None
+
+    
+    if rol in ROLES_SEDE_OBLIGATORIA and datos.id_sede is None:
+        raise HTTPException(
+            status_code=400,
+            detail="El socio debe tener una sede vÃ¡lida asignada (id_sede mayor a 0).",
+        )
+    if rol in ROLES_CON_DEPORTE and id_deporte is None:
+        raise HTTPException(
+            status_code=400,
+            detail="El representante debe tener un deporte asignado (id_deporte mayor a 0).",
+        )
+
+    
+    grupo = supabase.table("grupo_usuario").select("id_grupo").ilike("nombre", rol).execute()
+    if not grupo.data:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No existe el grupo para el rol '{rol}' en la tabla grupo_usuario.",
+        )
+    id_grupo = grupo.data[0]["id_grupo"]
+
+    
+    if id_deporte is not None and not _existe_activo(supabase, "deporte", "id_deporte", id_deporte):
+        raise HTTPException(
+            status_code=400,
+            detail=f"El deporte con ID {id_deporte} no existe o estÃ¡ inactivo.",
+        )
+    if datos.id_sede is not None and not _existe_activo(supabase, "sede", "id_sede", datos.id_sede):
+        raise HTTPException(
+            status_code=400,
+            detail=f"La sede con ID {datos.id_sede} no existe o estÃ¡ inactiva.",
+        )
+
+    
+    if supabase.table("persona").select("id_persona").eq("dni", datos.dni).execute().data:
+        raise HTTPException(status_code=409, detail="Ya existe una persona registrada con ese DNI.")
+    if supabase.table("usuario").select("id_usuario").eq("email", datos.email).execute().data:
+        raise HTTPException(status_code=409, detail="Ya existe un usuario registrado con ese email.")
+
+    user_id = None
+    id_persona = None
+    try:
+        
+        auth_response = supabase.auth.admin.create_user({
+            "email": datos.email,
+            "password": datos.password,
+            "email_confirm": True,
+        })
+        user_id = auth_response.user.id
+
+        
+        persona_res = supabase.table("persona").insert({
+            "nombre": datos.nombre,
+            "apellido": datos.apellido,
+            "dni": datos.dni,
+            "telefono": datos.telefono,
+            "fecha_nacimiento": datos.fecha_nacimiento.isoformat() if datos.fecha_nacimiento else None,
+        }).execute()
+        id_persona = persona_res.data[0]["id_persona"]
+
+        
+        hash_hex, salt_bytea = _generar_hash_y_salt(datos.password)
+
+        supabase.table("usuario").insert({
+            "id_usuario": user_id,
+            "id_persona": id_persona,
+            "id_sede": datos.id_sede,
+            "id_grupo": id_grupo,
+            "email": datos.email,
+            "nombre_usuario": f"{datos.nombre} {datos.apellido}",
+            "hash": hash_hex,
+            "salt": salt_bytea,
+        }).execute()
+
+        
+        payload = {"id_persona": id_persona}
+        if rol == "socio":
+            payload["id_sede"] = datos.id_sede
+        elif rol == "representante":
+            payload["id_deporte"] = id_deporte
+
+        rol_res = supabase.table(rol).insert(payload).execute()
+        datos_rol = rol_res.data[0] if rol_res.data else {}
+
+        respuesta = {
+            "mensaje": f"{rol.capitalize()} registrado exitosamente en el sistema.",
+            "id_usuario": user_id,
+            "id_persona": id_persona,
+            "rol": rol,
+            PK_POR_ROL[rol]: datos_rol.get(PK_POR_ROL[rol]),
+        }
+
+        if rol == "socio" and "codigo_credencial" in datos_rol:
+            respuesta["codigo_credencial"] = datos_rol["codigo_credencial"]
+
+        return respuesta
+
+    except HTTPException:
+        _rollback(supabase, user_id, id_persona, rol)
+        raise
+    except Exception as e:
+        _rollback(supabase, user_id, id_persona, rol)
+        logger.exception("Error al registrar el usuario")
+
+        texto = str(e).lower()
+        if "duplicate key" in texto or "23505" in texto or "already" in texto:
+            raise HTTPException(status_code=409, detail="El DNI o el email ya estÃ¡n registrados.")
+
+        raise HTTPException(
+            status_code=500,
+            detail="Error al registrar el usuario en la base de datos.",
+        )
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\backend\app\usuarios\__init__.py ===
+from fastapi import APIRouter, Depends
+from supabase import Client
+from app.database import get_supabase
+from . import admin, recepcion
+
+router = APIRouter()
+
+
+@router.get("/sedes", tags=["Sedes"])
+def listar_sedes(supabase: Client = Depends(get_supabase)):
+    res = (
+        supabase.table("sede")
+        .select("id_sede, nombre, direccion, mail, telefono")
+        .eq("activo", True)
+        .order("nombre")
+        .execute()
+    )
+    return res.data or []
+
+
+@router.get("/deportes", tags=["Deportes"])
+def listar_deportes(supabase: Client = Depends(get_supabase)):
+    res = (
+        supabase.table("deporte")
+        .select("id_deporte, nombre, descripcion")
+        .eq("activo", True)
+        .order("nombre")
+        .execute()
+    )
+    return res.data or []
+
+
+router.include_router(
+    admin.router, 
+    prefix="/admin", 
+    tags=["Usuarios - Administrador"]
+)
+router.include_router(
+    recepcion.router, 
+    prefix="/recepcion", 
+    tags=["Usuarios - RecepciÃ³n"]
+)
+
+__all__ = ["router"]
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\backend\app\database.py ===
+import os
+from pathlib import Path
+from functools import lru_cache
+from dotenv import load_dotenv
+from supabase import create_client, Client
+
+ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(dotenv_path=ENV_PATH)
+
+if not os.environ.get("SUPABASE_URL"):
+    load_dotenv()
+
+@lru_cache
+def get_supabase() -> Client:
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY")
+
+    if not url or not key:
+        raise RuntimeError(
+            f"Faltan variables de entorno. Buscado en: {ENV_PATH}. "
+            "AsegÃºrate de que el archivo .env exista y contenga SUPABASE_URL y SUPABASE_KEY."
+        )
+
+    return create_client(url, key)
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\backend\app\main.py ===
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.socios import router as socios_router
+from app.usuarios import router as usuarios_router
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,  # Permite cookies, cabeceras de autorizaciÃ³n y tokens
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(
+    socios_router,
+    prefix="/api/socios",
+    tags=["Socios"],
+)
+
+app.include_router(
+    usuarios_router,
+    prefix="/api/usuarios",
+)
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\backend\app\__init__.py ===
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\frontend\src\admin.jsx ===
+import { useState, useEffect } from "react";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const HOY = new Date().toISOString().split("T")[0];
+
+const FORM_INICIAL = {
+  nombre: "",
+  apellido: "",
+  dni: "",
+  telefono: "",
+  fecha_nacimiento: "",
+  email: "",
+  password: "",
+  rol: "representante",
+  id_sede: "",
+  id_deporte: "",
+};
+
+// Formatea automÃ¡ticamente a XX-XXXX-XXXX mientras el usuario escribe
+function formatearTelefonoInput(valor) {
+  let digitos = valor.replace(/\D/g, "");
+  if (digitos.startsWith("549")) digitos = digitos.slice(3);
+  else if (digitos.startsWith("54")) digitos = digitos.slice(2);
+  else if (digitos.startsWith("0")) digitos = digitos.slice(1);
+
+  digitos = digitos.slice(0, 10);
+
+  if (digitos.length <= 2) return digitos;
+  if (digitos.length <= 6) return `${digitos.slice(0, 2)}-${digitos.slice(2)}`;
+  return `${digitos.slice(0, 2)}-${digitos.slice(2, 6)}-${digitos.slice(6, 10)}`;
+}
+
+export default function Admin() {
+  const [formData, setFormData] = useState(FORM_INICIAL);
+  const [sedes, setSedes] = useState([]);
+  const [deportes, setDeportes] = useState([]);
+  const [cargandoCatalogos, setCargandoCatalogos] = useState(true);
+  const [mensaje, setMensaje] = useState(null);
+  const [error, setError] = useState(null);
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    const cargarCatalogos = async () => {
+      try {
+        const [resSedes, resDeportes] = await Promise.all([
+          fetch(`${API_URL}/api/usuarios/sedes`),
+          fetch(`${API_URL}/api/usuarios/deportes`),
+        ]);
+
+        if (!resSedes.ok || !resDeportes.ok) {
+          throw new Error("Error al consultar los catÃ¡logos de sedes o deportes.");
+        }
+
+        const [dataSedes, dataDeportes] = await Promise.all([
+          resSedes.json(),
+          resDeportes.json(),
+        ]);
+
+        setSedes(dataSedes);
+        setDeportes(dataDeportes);
+
+        setFormData((prev) => ({
+          ...prev,
+          id_sede: dataSedes.length > 0 ? String(dataSedes[0].id_sede) : "",
+          id_deporte: dataDeportes.length > 0 ? String(dataDeportes[0].id_deporte) : "",
+        }));
+      } catch (err) {
+        console.error("Error al cargar sedes o deportes:", err);
+        setError("No se pudieron cargar las sedes o los deportes. VerificÃ¡ la conexiÃ³n con el servidor.");
+      } finally {
+        setCargandoCatalogos(false);
+      }
+    };
+
+    cargarCatalogos();
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "telefono" ? formatearTelefonoInput(value) : value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMensaje(null);
+    setError(null);
+
+    if (!formData.id_sede) {
+      setError("DebÃ©s seleccionar una sede obligatoriamente.");
+      return;
+    }
+
+    if (formData.rol === "representante" && !formData.id_deporte) {
+      setError("DebÃ©s seleccionar un deporte para el representante.");
+      return;
+    }
+
+    setEnviando(true);
+
+    try {
+      const payload = {
+        nombre: formData.nombre.trim(),
+        apellido: formData.apellido.trim(),
+        dni: formData.dni.trim(),
+        telefono: formData.telefono ? formData.telefono.trim() : null,
+        fecha_nacimiento: formData.fecha_nacimiento || null,
+        email: formData.email.trim(),
+        password: formData.password,
+        rol: formData.rol,
+        id_sede: parseInt(formData.id_sede, 10),
+        id_deporte:
+          formData.rol === "representante" && formData.id_deporte
+            ? parseInt(formData.id_deporte, 10)
+            : null,
+      };
+
+      const response = await fetch(`${API_URL}/api/usuarios/admin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const detalle = Array.isArray(data.detail)
+          ? data.detail.map((d) => d.msg).join(", ")
+          : data.detail;
+        throw new Error(detalle || "Error al registrar el usuario");
+      }
+
+      setMensaje(data.mensaje || "Â¡Usuario registrado con Ã©xito!");
+      setFormData({
+        ...FORM_INICIAL,
+        id_sede: sedes.length > 0 ? String(sedes[0].id_sede) : "",
+        id_deporte: deportes.length > 0 ? String(deportes[0].id_deporte) : "",
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const botonDeshabilitado =
+    enviando ||
+    cargandoCatalogos ||
+    sedes.length === 0 ||
+    (formData.rol === "representante" && deportes.length === 0);
+
+  return (
+    <div style={{ maxWidth: "480px", margin: "20px auto", padding: "20px", border: "1px solid #ccc", borderRadius: "8px" }}>
+      <h2>Alta de Usuarios (AdministraciÃ³n)</h2>
+      {mensaje && <p style={{ color: "green", fontWeight: "bold" }}>{mensaje}</p>}
+      {error && <p style={{ color: "red", fontWeight: "bold" }}>{error}</p>}
+
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label>Nombre:</label>
+          <input
+            type="text"
+            name="nombre"
+            value={formData.nombre}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>Apellido:</label>
+          <input
+            type="text"
+            name="apellido"
+            value={formData.apellido}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>DNI:</label>
+          <input
+            type="text"
+            name="dni"
+            value={formData.dni}
+            onChange={handleChange}
+            required
+            pattern="\d{7,9}"
+            title="IngresÃ¡ entre 7 y 9 nÃºmeros, sin puntos ni espacios"
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>TelÃ©fono:</label>
+          <input
+            type="tel"
+            name="telefono"
+            value={formData.telefono}
+            onChange={handleChange}
+            placeholder="11-5555-1000"
+            pattern="\d{2}-\d{4}-\d{4}"
+            title="IngresÃ¡ los 10 dÃ­gitos del telÃ©fono (ej: 11-5555-1000)"
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>Fecha de Nacimiento:</label>
+          <input
+            type="date"
+            name="fecha_nacimiento"
+            value={formData.fecha_nacimiento}
+            onChange={handleChange}
+            max={HOY}
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>Email:</label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>ContraseÃ±a:</label>
+          <input
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            minLength={6}
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>Rol:</label>
+          <select
+            name="rol"
+            value={formData.rol}
+            onChange={handleChange}
+            style={{ width: "100%", marginBottom: "10px" }}
+          >
+            <option value="representante">Representante</option>
+            <option value="profesor">Profesor</option>
+            <option value="socio">Socio</option>
+          </select>
+        </div>
+
+        {formData.rol === "representante" && (
+          <div>
+            <label>Deporte asignado:</label>
+            <select
+              name="id_deporte"
+              value={formData.id_deporte}
+              onChange={handleChange}
+              required
+              style={{ width: "100%", marginBottom: "10px" }}
+            >
+              {cargandoCatalogos && <option value="">Cargando deportes...</option>}
+              {!cargandoCatalogos && deportes.length === 0 && <option value="">No hay deportes disponibles</option>}
+              {deportes.map((dep) => (
+                <option key={dep.id_deporte} value={dep.id_deporte}>
+                  {dep.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div>
+          <label>Sede (Obligatoria):</label>
+          <select
+            name="id_sede"
+            value={formData.id_sede}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", marginBottom: "10px" }}
+          >
+            {cargandoCatalogos && <option value="">Cargando sedes...</option>}
+            {!cargandoCatalogos && sedes.length === 0 && <option value="">No hay sedes disponibles</option>}
+            {sedes.map((sede) => (
+              <option key={sede.id_sede} value={sede.id_sede}>
+                {sede.nombre} {sede.direccion ? `(${sede.direccion})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="submit"
+          disabled={botonDeshabilitado}
+          style={{
+            width: "100%",
+            padding: "10px",
+            background: botonDeshabilitado ? "#7aa7d9" : "#28a745",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: botonDeshabilitado ? "not-allowed" : "pointer",
+          }}
+        >
+          {enviando ? "Registrando..." : "Registrar Usuario (Admin)"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\frontend\src\App.jsx ===
+import { useState } from "react";
+import Recepcion from "./recepcion";
+import Admin from "./admin";
+import "./App.css";
+
+function App() {
+  const [vista, setVista] = useState("recepcion"); // 'recepcion' o 'admin'
+
+  return (
+    <main style={{ padding: "20px", fontFamily: "sans-serif" }}>
+      <header style={{ textAlign: "center", marginBottom: "20px" }}>
+        <h1>Sistema de GestiÃ³n</h1>
+
+        {/* Botones para alternar entre pantallas */}
+        <div style={{ marginTop: "10px" }}>
+          <button
+            onClick={() => setVista("recepcion")}
+            style={{
+              padding: "8px 16px",
+              marginRight: "10px",
+              background: vista === "recepcion" ? "#007bff" : "#e0e0e0",
+              color: vista === "recepcion" ? "white" : "black",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Vista RecepciÃ³n
+          </button>
+
+          <button
+            onClick={() => setVista("admin")}
+            style={{
+              padding: "8px 16px",
+              background: vista === "admin" ? "#28a745" : "#e0e0e0",
+              color: vista === "admin" ? "white" : "black",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Vista Administrador
+          </button>
+        </div>
+      </header>
+
+      {/* Renderizado condicional segÃºn la pestaÃ±a activa */}
+      {vista === "recepcion" ? <Recepcion /> : <Admin />}
+    </main>
+  );
+}
+
+export default App;
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\frontend\src\main.jsx ===
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\frontend\src\recepcion.jsx ===
+import { useState, useEffect } from "react";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const HOY = new Date().toISOString().split("T")[0];
+
+const FORM_INICIAL = {
+  nombre: "",
+  apellido: "",
+  dni: "",
+  telefono: "",
+  fecha_nacimiento: "",
+  email: "",
+  password: "",
+  rol: "socio",
+  id_sede: "",
+};
+
+// Formatea automÃ¡ticamente a XX-XXXX-XXXX mientras el usuario escribe
+function formatearTelefonoInput(valor) {
+  let digitos = valor.replace(/\D/g, "");
+  if (digitos.startsWith("549")) digitos = digitos.slice(3);
+  else if (digitos.startsWith("54")) digitos = digitos.slice(2);
+  else if (digitos.startsWith("0")) digitos = digitos.slice(1);
+
+  digitos = digitos.slice(0, 10);
+
+  if (digitos.length <= 2) return digitos;
+  if (digitos.length <= 6) return `${digitos.slice(0, 2)}-${digitos.slice(2)}`;
+  return `${digitos.slice(0, 2)}-${digitos.slice(2, 6)}-${digitos.slice(6, 10)}`;
+}
+
+export default function Recepcion() {
+  const [formData, setFormData] = useState(FORM_INICIAL);
+  const [sedes, setSedes] = useState([]);
+  const [cargandoSedes, setCargandoSedes] = useState(true);
+  const [mensaje, setMensaje] = useState(null);
+  const [error, setError] = useState(null);
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/usuarios/sedes`)
+      .then((res) => {
+        if (!res.ok) throw new Error("No se pudieron obtener las sedes del servidor.");
+        return res.json();
+      })
+      .then((data) => {
+        setSedes(data);
+        if (data.length > 0) {
+          setFormData((prev) => ({ ...prev, id_sede: String(data[0].id_sede) }));
+        }
+      })
+      .catch((err) => {
+        console.error("Error al cargar sedes:", err);
+        setError("Error al cargar las sedes. VerificÃ¡ la conexiÃ³n con el servidor.");
+      })
+      .finally(() => setCargandoSedes(false));
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => {
+      const valorFinal = name === "telefono" ? formatearTelefonoInput(value) : value;
+      const actualizado = { ...prev, [name]: valorFinal };
+      // Si cambia el rol a "socio" y tenÃ­a "Sin sede asignada", preseleccionamos la primera sede
+      if (name === "rol" && value === "socio" && !prev.id_sede && sedes.length > 0) {
+        actualizado.id_sede = String(sedes[0].id_sede);
+      }
+      return actualizado;
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMensaje(null);
+    setError(null);
+
+    if (formData.rol === "socio" && !formData.id_sede) {
+      setError("El socio debe tener una sede asignada obligatoriamente.");
+      return;
+    }
+
+    setEnviando(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/usuarios/recepcion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: formData.nombre.trim(),
+          apellido: formData.apellido.trim(),
+          dni: formData.dni.trim(),
+          telefono: formData.telefono ? formData.telefono.trim() : null,
+          fecha_nacimiento: formData.fecha_nacimiento || null,
+          email: formData.email.trim(),
+          password: formData.password,
+          rol: formData.rol,
+          id_sede: formData.id_sede ? parseInt(formData.id_sede, 10) : null,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const detalle = Array.isArray(data.detail)
+          ? data.detail.map((d) => d.msg).join(", ")
+          : data.detail;
+        throw new Error(detalle || "Error al registrar el usuario");
+      }
+
+      setMensaje(data.mensaje || "Â¡Usuario registrado con Ã©xito!");
+      setFormData({
+        ...FORM_INICIAL,
+        id_sede: sedes.length > 0 ? String(sedes[0].id_sede) : "",
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const botonDeshabilitado =
+    enviando || cargandoSedes || (formData.rol === "socio" && sedes.length === 0);
+
+  return (
+    <div style={{ maxWidth: "450px", margin: "20px auto", padding: "20px", border: "1px solid #ccc", borderRadius: "8px" }}>
+      <h2>Alta de Usuario (RecepciÃ³n)</h2>
+      {mensaje && <p style={{ color: "green", fontWeight: "bold" }}>{mensaje}</p>}
+      {error && <p style={{ color: "red", fontWeight: "bold" }}>{error}</p>}
+
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label>Nombre:</label>
+          <input
+            type="text"
+            name="nombre"
+            value={formData.nombre}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>Apellido:</label>
+          <input
+            type="text"
+            name="apellido"
+            value={formData.apellido}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>DNI:</label>
+          <input
+            type="text"
+            name="dni"
+            value={formData.dni}
+            onChange={handleChange}
+            required
+            pattern="\d{7,9}"
+            title="IngresÃ¡ entre 7 y 9 nÃºmeros, sin puntos ni espacios"
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>TelÃ©fono:</label>
+          <input
+            type="tel"
+            name="telefono"
+            value={formData.telefono}
+            onChange={handleChange}
+            placeholder="11-5555-1000"
+            pattern="\d{2}-\d{4}-\d{4}"
+            title="IngresÃ¡ los 10 dÃ­gitos del telÃ©fono (ej: 11-5555-1000)"
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>Fecha de Nacimiento:</label>
+          <input
+            type="date"
+            name="fecha_nacimiento"
+            value={formData.fecha_nacimiento}
+            onChange={handleChange}
+            max={HOY}
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>Email:</label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>ContraseÃ±a:</label>
+          <input
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            minLength={6}
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+
+        <div>
+          <label>Rol:</label>
+          <select
+            name="rol"
+            value={formData.rol}
+            onChange={handleChange}
+            style={{ width: "100%", marginBottom: "10px" }}
+          >
+            <option value="socio">Socio</option>
+            <option value="profesor">Profesor</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Sede {formData.rol === "socio" ? "(Obligatoria):" : "(Opcional):"}</label>
+          <select
+            name="id_sede"
+            value={formData.id_sede}
+            onChange={handleChange}
+            required={formData.rol === "socio"}
+            style={{ width: "100%", marginBottom: "10px" }}
+          >
+            {cargandoSedes && <option value="">Cargando sedes...</option>}
+            {!cargandoSedes && sedes.length === 0 && <option value="">No hay sedes cargadas</option>}
+            {formData.rol === "profesor" && <option value="">Sin sede asignada</option>}
+            {sedes.map((sede) => (
+              <option key={sede.id_sede} value={sede.id_sede}>
+                {sede.nombre} {sede.direccion ? `(${sede.direccion})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="submit"
+          disabled={botonDeshabilitado}
+          style={{
+            width: "100%",
+            padding: "10px",
+            background: botonDeshabilitado ? "#7aa7d9" : "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: botonDeshabilitado ? "not-allowed" : "pointer",
+          }}
+        >
+          {enviando ? "Registrando..." : "Registrar Usuario"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\frontend\index.html ===
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>frontend</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\frontend\package-lock.json ===
+{
+  "name": "frontend",
+  "version": "0.0.0",
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "frontend",
+      "version": "0.0.0",
+      "dependencies": {
+        "react": "^19.2.8",
+        "react-dom": "^19.2.8"
+      },
+      "devDependencies": {
+        "@types/react": "^19.2.18",
+        "@types/react-dom": "^19.2.7",
+        "@vitejs/plugin-react": "^6.1.1",
+        "oxlint": "^1.81.0",
+        "vite": "^8.3.0"
+      }
+    },
+    "node_modules/@oxc-project/types": {
+      "version": "0.152.0",
+      "resolved": "https://registry.npmjs.org/@oxc-project/types/-/types-0.152.0.tgz",
+      "integrity": "sha512-oM/5rLBm2tPkg0iBgkH/FOeR3PCDpY19GTgAZjMFM8h9WI9VW7cLgzp6nwtarYKmovavIQZ+Fe/RKX/8C8O/Rw==",
+      "dev": true,
+      "license": "MIT",
+      "funding": {
+        "url": "https://github.com/sponsors/oxc-project"
+      }
+    },
+    "node_modules/@oxlint/binding-android-arm-eabi": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-android-arm-eabi/-/binding-android-arm-eabi-1.86.0.tgz",
+      "integrity": "sha512-63Ozq6yQn79B2UxjSZ9huJmI+3/ZPI7hxAe6TyFh9oQL447KnIMoffOdtog+h4KILbQr61ZRvFPW5gYbAUgpgQ==",
+      "cpu": [
+        "arm"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "android"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-android-arm64": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-android-arm64/-/binding-android-arm64-1.86.0.tgz",
+      "integrity": "sha512-JdLGp44phbf/0Du236Dt06yfK6Qw8xhTFeDvHJdjk167r59OfP5+BL31mgMYVnswS8e+j6tFuccSY0QDC/lgCw==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "android"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-darwin-arm64": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-darwin-arm64/-/binding-darwin-arm64-1.86.0.tgz",
+      "integrity": "sha512-h+vkOr4ik6KLFCXdtNVEj9xfnXfNUpPoF95QjORdhiSpLqQePzcN81kGHjAgsw1/G7WBWK5KsFKbI2UK8EyzMA==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "darwin"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-darwin-x64": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-darwin-x64/-/binding-darwin-x64-1.86.0.tgz",
+      "integrity": "sha512-wbglRuH5eKsp68keTOOeKDHU1astWSRYFsh2bwKQTAPb44rD6kVgzYI1ZrAJRTc6/7PH55ZXFCQx0rQXrj0UdA==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "darwin"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-freebsd-x64": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-freebsd-x64/-/binding-freebsd-x64-1.86.0.tgz",
+      "integrity": "sha512-yTQ7QSOlNfQsrfbeVweTiegQJLKPjUKgXp/JpGiFzza6Hp29S9LAoH77TM3L0RjK39iQRZB5lk5iq2t241Mfag==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "freebsd"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-linux-arm-gnueabihf": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-linux-arm-gnueabihf/-/binding-linux-arm-gnueabihf-1.86.0.tgz",
+      "integrity": "sha512-QYJGy0E2Tv8GAayyBIeHFTwQb8u+zrvrOYrifuDGZDr9ad5XsDhiMScpZymhS9fwWjqrgG2ZUwT4vpY0ISqp4Q==",
+      "cpu": [
+        "arm"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-linux-arm-musleabihf": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-linux-arm-musleabihf/-/binding-linux-arm-musleabihf-1.86.0.tgz",
+      "integrity": "sha512-oQo83CafLT8p3qh0AGkN0tSUIh5Hm63mfDsoqUmBQUBnSZLNBAbyRaAftfGY5a0cKZ34dG6jAtMYgcY5kZqt5g==",
+      "cpu": [
+        "arm"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-linux-arm64-gnu": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-linux-arm64-gnu/-/binding-linux-arm64-gnu-1.86.0.tgz",
+      "integrity": "sha512-EM6wy5c2UM12qPb7iDJDBAZvHyfEJGH6iosFgaFiaRZpirz99//EHcUyD2KAskz07x1TULuiAtsojf4nvWWksw==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-linux-arm64-musl": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-linux-arm64-musl/-/binding-linux-arm64-musl-1.86.0.tgz",
+      "integrity": "sha512-vCiUQb9ZNzZalxYRU4mlZwUqT5f+c7Sk9DwUOplWHtik3Dl4r3DVnUB5tBeRuTAUe6MUVCTylNW7TkkN8J1oTw==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-linux-ppc64-gnu": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-linux-ppc64-gnu/-/binding-linux-ppc64-gnu-1.86.0.tgz",
+      "integrity": "sha512-T0AzE89yjTYmOhB/hb6i+rWTpe2mYt+xiguBhs9DEPIJTZ1H8OYqsE4VxJHHw2Wlq8Mztwvp2P8NV87ZOuhPRw==",
+      "cpu": [
+        "ppc64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-linux-riscv64-gnu": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-linux-riscv64-gnu/-/binding-linux-riscv64-gnu-1.86.0.tgz",
+      "integrity": "sha512-s49r0K2f5Oc7fJoMUO1WkdhYK5Ob79uYRwWQ/XNoGysaOq3RUGmGUbHSuXiyydTTA+P9xEdDEnnlZVXiaSJhlw==",
+      "cpu": [
+        "riscv64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-linux-riscv64-musl": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-linux-riscv64-musl/-/binding-linux-riscv64-musl-1.86.0.tgz",
+      "integrity": "sha512-JIa2tYR8ayb3nvcMSZzn4O/xTy13S7MHllu7cBD+B5qDQXXSRy/Vwk1aNpiTjZmBJGwKCHOy/NvnY5Xcwg27uQ==",
+      "cpu": [
+        "riscv64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-linux-s390x-gnu": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-linux-s390x-gnu/-/binding-linux-s390x-gnu-1.86.0.tgz",
+      "integrity": "sha512-XwXMyBsAuWZkhZU74UNcfQKr1CJJAKnS80dZzOnjl6A4fKcf91IjFgidegQugMHA5SN8ulwDXEDV1yPntjXgQQ==",
+      "cpu": [
+        "s390x"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-linux-x64-gnu": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-linux-x64-gnu/-/binding-linux-x64-gnu-1.86.0.tgz",
+      "integrity": "sha512-C1WjukSyMnr66b+w1/tV8RFVv6d9v0MzDf4p9IxVXknqgmTHBgZh1pccN1eHzFr0b9Tbb3OXoPsAAdAuHAQfeA==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-linux-x64-musl": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-linux-x64-musl/-/binding-linux-x64-musl-1.86.0.tgz",
+      "integrity": "sha512-ap6KLmvC38c6MdYzsIh25cXQupqYvjd37tMNftzrX1DCtkX1Gcf2B+S2B17dD4lKa5c5gJog7DQJyDo82PBKyw==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-openharmony-arm64": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-openharmony-arm64/-/binding-openharmony-arm64-1.86.0.tgz",
+      "integrity": "sha512-996Q9w/2GLwNyy5Djs39Jt09aFlr4b7TPhoj7dvo5FHmcyiF68nPz73HNc5UAYKIYeK+M9JzPQ4Wg1r1dXvP6A==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "openharmony"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-win32-arm64-msvc": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-win32-arm64-msvc/-/binding-win32-arm64-msvc-1.86.0.tgz",
+      "integrity": "sha512-9uTCHYTknNkug5+46ViSoUMuOuGWK61D87QnblU6CXaWKJC630Z7dbls61vdHxya/cR2ycQZ6Mm6ckgF6Cag5g==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "win32"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-win32-ia32-msvc": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-win32-ia32-msvc/-/binding-win32-ia32-msvc-1.86.0.tgz",
+      "integrity": "sha512-a47ga7EKVfMU8rO0i1m3mGwfNRj3FhQyt1d/ukO/E9u1HHF3KpR3tyb3VhuJBGEVPF8uR4exSyHUyx7xbE+uxw==",
+      "cpu": [
+        "ia32"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "win32"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@oxlint/binding-win32-x64-msvc": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/@oxlint/binding-win32-x64-msvc/-/binding-win32-x64-msvc-1.86.0.tgz",
+      "integrity": "sha512-az4dzifCRzES1crwu6pDFXzJTIanrdxXFL9TbiJWrx9LKcuacbR83aPvxDA1LKLNswi/RoqitC7Afcflhu3zBQ==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "win32"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-android-arm-eabi": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-android-arm-eabi/-/binding-android-arm-eabi-1.2.12.tgz",
+      "integrity": "sha512-dB/a1214qKfHMXCpgqR4OZT+jS4kTyEXbQGJPqzobt5EwH5rX080pxE37alt3RzvR1bf1Yz/yGqRfrYAxuPw0A==",
+      "cpu": [
+        "arm"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "android"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-android-arm64": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-android-arm64/-/binding-android-arm64-1.2.12.tgz",
+      "integrity": "sha512-7KHFgQ5VJxIHcLlrwrc3Xbds7oTNQT7Pgi9gQCJKrd2VGab/UksIOYp6VD8MzCstGxOKMgNamPwUCfxPdP1OHg==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "android"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-darwin-arm64": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-darwin-arm64/-/binding-darwin-arm64-1.2.12.tgz",
+      "integrity": "sha512-3YIhqHD96nA5SaYNRBR16HnGv4oavZvXfD/ayHM+oYZ0WD/8lBAtf6zQua4kEyAvpqrluKXl0lnOBoiNby7x9w==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "darwin"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-darwin-x64": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-darwin-x64/-/binding-darwin-x64-1.2.12.tgz",
+      "integrity": "sha512-UuuJ35MFw4gmFOrE9pEqIV+K3syIKveph+Qc1/ljHZVdoDW4pz/JHR/eMVom+TZGl/5OOvGJOWaOCVt3ZfqhxA==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "darwin"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-freebsd-x64": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-freebsd-x64/-/binding-freebsd-x64-1.2.12.tgz",
+      "integrity": "sha512-uMvssit0a4W+/7D8CbHUvG719mH3R2jwXAlh/XcPvuHTE0g++LymF88DCGNX0HM2rBOn0xrzgXktIB6fLSJBTQ==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "freebsd"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-linux-arm-gnueabihf": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-arm-gnueabihf/-/binding-linux-arm-gnueabihf-1.2.12.tgz",
+      "integrity": "sha512-XcFu0R0xWnwzSf4IQgFH1rJIckPN1pLy2R+4r9IDB7Yfu/ys9cVqfa4pBrMHj7a3gl8mIR4nRNPg0e5IvEVs6g==",
+      "cpu": [
+        "arm"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-linux-arm64-gnu": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-arm64-gnu/-/binding-linux-arm64-gnu-1.2.12.tgz",
+      "integrity": "sha512-260UrKgn8tz39ak+SMDOirKzr7V04M9dWPw5llW00SwBivCZoWcRBKV1d8cXnRkUmSZA3BdiUmBHWk7734Ulpw==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-linux-arm64-musl": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-arm64-musl/-/binding-linux-arm64-musl-1.2.12.tgz",
+      "integrity": "sha512-5YK1I9SqDkbPgc1IA8BgDl34suqUS2q0KWnBrirm0E51YjOs6eo6dV6jbQfNE/argHRSvd0QUGgtpIoYx+WWpw==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-linux-ppc64-gnu": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-ppc64-gnu/-/binding-linux-ppc64-gnu-1.2.12.tgz",
+      "integrity": "sha512-Rkcrmp7eFRg74yL5fXEU91JEWbdEPLevWwGtXpmhbjlD1StScbWTmO94Bhly+Mo+ketKYkdmM1vNUKeWSlx8cQ==",
+      "cpu": [
+        "ppc64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-linux-s390x-gnu": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-s390x-gnu/-/binding-linux-s390x-gnu-1.2.12.tgz",
+      "integrity": "sha512-qvK4DuAsQc2BSjlx+Xr+IzOIvvxbGZqxFwdWfG6F518Erj0GGISyQbJ6pIappnOxlNPzNHvo/L0BwB30GZ+zVw==",
+      "cpu": [
+        "s390x"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-linux-x64-gnu": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-x64-gnu/-/binding-linux-x64-gnu-1.2.12.tgz",
+      "integrity": "sha512-Q9uLBO53Xd4QIq1WOycVQyPP1O4HhraEV2qqb3uTrnVw6QZih9duY4vNXOivL1xoUS1/z+W8eF4NMfl2a8Sdjw==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-linux-x64-musl": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-x64-musl/-/binding-linux-x64-musl-1.2.12.tgz",
+      "integrity": "sha512-3IBxWFMjbOZskDPKv8Lf9BCnahlKuHthWkYnyIxOH/QcJrFcS4EmcenthApkwr/5+nEqZlLzeYbxeMaX7A5u4g==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-openharmony-arm64": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-openharmony-arm64/-/binding-openharmony-arm64-1.2.12.tgz",
+      "integrity": "sha512-xtX61xg4LKPkPWilZU1ynKClz5Gj4bf74LML4r3eVLWumKnGjoEr1OSHQhMdbBDoYTi+yjrujvpZe2pUnqCrrA==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "openharmony"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-win32-arm64-msvc": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-win32-arm64-msvc/-/binding-win32-arm64-msvc-1.2.12.tgz",
+      "integrity": "sha512-At7fPB6PCaIjzgIhEZFxuT+BBFqiQibJDT4d3PhiR3f4E7bbMZF4aKblbFfEM3sETRDd1YiQx/+U/g/B/ou5Ew==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "win32"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/binding-win32-x64-msvc": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/@rolldown/binding-win32-x64-msvc/-/binding-win32-x64-msvc-1.2.12.tgz",
+      "integrity": "sha512-WIw2haVKwjuYdXkHaoC0mF8Le71TuCBxjrdKqLbJGctbBABj+ClfmNvtbOnzpq3RokNo5+V1qhtSzJyXorsklQ==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "win32"
+      ],
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      }
+    },
+    "node_modules/@rolldown/pluginutils": {
+      "version": "1.0.1",
+      "resolved": "https://registry.npmjs.org/@rolldown/pluginutils/-/pluginutils-1.0.1.tgz",
+      "integrity": "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==",
+      "dev": true,
+      "license": "MIT"
+    },
+    "node_modules/@types/react": {
+      "version": "19.3.0",
+      "resolved": "https://registry.npmjs.org/@types/react/-/react-19.3.0.tgz",
+      "integrity": "sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==",
+      "dev": true,
+      "license": "MIT",
+      "dependencies": {
+        "csstype": "^3.2.2"
+      }
+    },
+    "node_modules/@types/react-dom": {
+      "version": "19.3.0",
+      "resolved": "https://registry.npmjs.org/@types/react-dom/-/react-dom-19.3.0.tgz",
+      "integrity": "sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==",
+      "dev": true,
+      "license": "MIT",
+      "peerDependencies": {
+        "@types/react": "^19.3.0"
+      }
+    },
+    "node_modules/@vitejs/plugin-react": {
+      "version": "6.1.1",
+      "resolved": "https://registry.npmjs.org/@vitejs/plugin-react/-/plugin-react-6.1.1.tgz",
+      "integrity": "sha512-yxLaQV9gkhS8ezJqCM6+ndU7mDY6gqAg75NQ+0IjwEI8IYOmQCgkRwHKVSfWXW076DsqMo0Dk+0FK1U+M5RgFw==",
+      "dev": true,
+      "license": "MIT",
+      "dependencies": {
+        "@rolldown/pluginutils": "^1.0.1"
+      },
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      },
+      "peerDependencies": {
+        "@rolldown/plugin-babel": "^0.1.7 || ^0.2.0",
+        "babel-plugin-react-compiler": "^1.0.0",
+        "oxc-transform-react": "^0.145.0",
+        "vite": "^8.0.0"
+      },
+      "peerDependenciesMeta": {
+        "@rolldown/plugin-babel": {
+          "optional": true
+        },
+        "babel-plugin-react-compiler": {
+          "optional": true
+        },
+        "oxc-transform-react": {
+          "optional": true
+        }
+      }
+    },
+    "node_modules/csstype": {
+      "version": "3.2.3",
+      "resolved": "https://registry.npmjs.org/csstype/-/csstype-3.2.3.tgz",
+      "integrity": "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==",
+      "dev": true,
+      "license": "MIT"
+    },
+    "node_modules/detect-libc": {
+      "version": "2.1.2",
+      "resolved": "https://registry.npmjs.org/detect-libc/-/detect-libc-2.1.2.tgz",
+      "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==",
+      "dev": true,
+      "license": "Apache-2.0",
+      "engines": {
+        "node": ">=8"
+      }
+    },
+    "node_modules/fdir": {
+      "version": "6.5.0",
+      "resolved": "https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz",
+      "integrity": "sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==",
+      "dev": true,
+      "license": "MIT",
+      "engines": {
+        "node": ">=12.0.0"
+      },
+      "peerDependencies": {
+        "picomatch": "^3 || ^4"
+      },
+      "peerDependenciesMeta": {
+        "picomatch": {
+          "optional": true
+        }
+      }
+    },
+    "node_modules/fsevents": {
+      "version": "2.3.3",
+      "resolved": "https://registry.npmjs.org/fsevents/-/fsevents-2.3.3.tgz",
+      "integrity": "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==",
+      "dev": true,
+      "hasInstallScript": true,
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "darwin"
+      ],
+      "engines": {
+        "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
+      }
+    },
+    "node_modules/lightningcss": {
+      "version": "1.33.0",
+      "resolved": "https://registry.npmjs.org/lightningcss/-/lightningcss-1.33.0.tgz",
+      "integrity": "sha512-WkUDrojuJs0xkgGf2udWxa3yGBRxPtxUkB79i6aCZLRgc7PM8fZe9TosfPDcvEpQZbuFASnHYmRLBLUbmLOIIA==",
+      "dev": true,
+      "license": "MPL-2.0",
+      "dependencies": {
+        "detect-libc": "^2.0.3"
+      },
+      "engines": {
+        "node": ">= 12.0.0"
+      },
+      "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/parcel"
+      },
+      "optionalDependencies": {
+        "lightningcss-android-arm64": "1.33.0",
+        "lightningcss-darwin-arm64": "1.33.0",
+        "lightningcss-darwin-x64": "1.33.0",
+        "lightningcss-freebsd-x64": "1.33.0",
+        "lightningcss-linux-arm-gnueabihf": "1.33.0",
+        "lightningcss-linux-arm64-gnu": "1.33.0",
+        "lightningcss-linux-arm64-musl": "1.33.0",
+        "lightningcss-linux-x64-gnu": "1.33.0",
+        "lightningcss-linux-x64-musl": "1.33.0",
+        "lightningcss-win32-arm64-msvc": "1.33.0",
+        "lightningcss-win32-x64-msvc": "1.33.0"
+      }
+    },
+    "node_modules/lightningcss-android-arm64": {
+      "version": "1.33.0",
+      "resolved": "https://registry.npmjs.org/lightningcss-android-arm64/-/lightningcss-android-arm64-1.33.0.tgz",
+      "integrity": "sha512-gEpRTalKdosp4Bb8qWtc2iOgE5SeIHlpS1up9bFq2wAyYhl1UdTObYiHe98zEM9SQvSoqQZ1IQD0JNpg3Ml5pg==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MPL-2.0",
+      "optional": true,
+      "os": [
+        "android"
+      ],
+      "engines": {
+        "node": ">= 12.0.0"
+      },
+      "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/parcel"
+      }
+    },
+    "node_modules/lightningcss-darwin-arm64": {
+      "version": "1.33.0",
+      "resolved": "https://registry.npmjs.org/lightningcss-darwin-arm64/-/lightningcss-darwin-arm64-1.33.0.tgz",
+      "integrity": "sha512-Sciaz8eenNTKn9b3t7+xr0ipTp9YxKQY4npwQ3mrRuL0BAVHBLyZxofhaKBAVtzmtRZ/zTyo0/to4B1uWG/Djg==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MPL-2.0",
+      "optional": true,
+      "os": [
+        "darwin"
+      ],
+      "engines": {
+        "node": ">= 12.0.0"
+      },
+      "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/parcel"
+      }
+    },
+    "node_modules/lightningcss-darwin-x64": {
+      "version": "1.33.0",
+      "resolved": "https://registry.npmjs.org/lightningcss-darwin-x64/-/lightningcss-darwin-x64-1.33.0.tgz",
+      "integrity": "sha512-Z5UPAxzrjlWNNyGy6i65cJzzvgJ5D3T6wMvs+gWpY9d7qRhANrxqAp6LhxIgZhWEw18RfJTGcRxjuLIBr+m8XQ==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MPL-2.0",
+      "optional": true,
+      "os": [
+        "darwin"
+      ],
+      "engines": {
+        "node": ">= 12.0.0"
+      },
+      "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/parcel"
+      }
+    },
+    "node_modules/lightningcss-freebsd-x64": {
+      "version": "1.33.0",
+      "resolved": "https://registry.npmjs.org/lightningcss-freebsd-x64/-/lightningcss-freebsd-x64-1.33.0.tgz",
+      "integrity": "sha512-QQM/Ti/hQajJwCY+RiWuCZ9sdtI/XQk7nDK5vC8kkdwixezOlDgvDx7+RT+QjK6FcFT4MpsuoBnHIo/O3StRRg==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MPL-2.0",
+      "optional": true,
+      "os": [
+        "freebsd"
+      ],
+      "engines": {
+        "node": ">= 12.0.0"
+      },
+      "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/parcel"
+      }
+    },
+    "node_modules/lightningcss-linux-arm-gnueabihf": {
+      "version": "1.33.0",
+      "resolved": "https://registry.npmjs.org/lightningcss-linux-arm-gnueabihf/-/lightningcss-linux-arm-gnueabihf-1.33.0.tgz",
+      "integrity": "sha512-N7FVBe6iS24MlM6R/4RBTxGhQheZGs7tiQ9U32UtF75NzP5Q7xWPRqLBCKxlRQRk3rY1jCIPLzx7WzOhuUIRLQ==",
+      "cpu": [
+        "arm"
+      ],
+      "dev": true,
+      "license": "MPL-2.0",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">= 12.0.0"
+      },
+      "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/parcel"
+      }
+    },
+    "node_modules/lightningcss-linux-arm64-gnu": {
+      "version": "1.33.0",
+      "resolved": "https://registry.npmjs.org/lightningcss-linux-arm64-gnu/-/lightningcss-linux-arm64-gnu-1.33.0.tgz",
+      "integrity": "sha512-j2v/itmy4HlNxlc6voKXYgBqNi0Ng2LShg4z7GufpEgs05P+2suBVyi9I6YHq5uoVFx9ETin3eCEhLVyXGQnKg==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MPL-2.0",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">= 12.0.0"
+      },
+      "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/parcel"
+      }
+    },
+    "node_modules/lightningcss-linux-arm64-musl": {
+      "version": "1.33.0",
+      "resolved": "https://registry.npmjs.org/lightningcss-linux-arm64-musl/-/lightningcss-linux-arm64-musl-1.33.0.tgz",
+      "integrity": "sha512-yiO5ROMuYQgXbC60yjZU5CYSFZGKXL0HFATXt9mHJn1+zW55oCtMI9NfcVhYLMFDL7gV7oBPon/EmMMGg2OvtQ==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MPL-2.0",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">= 12.0.0"
+      },
+      "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/parcel"
+      }
+    },
+    "node_modules/lightningcss-linux-x64-gnu": {
+      "version": "1.33.0",
+      "resolved": "https://registry.npmjs.org/lightningcss-linux-x64-gnu/-/lightningcss-linux-x64-gnu-1.33.0.tgz",
+      "integrity": "sha512-ar+Ju7LmcN0Jo4FpL4hpFybwNG9/3A/Br5KW2n2jyODg3MEZXaDYADdemoNS+BDNfMgKvylJLj4S5tyRActuAg==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MPL-2.0",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">= 12.0.0"
+      },
+      "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/parcel"
+      }
+    },
+    "node_modules/lightningcss-linux-x64-musl": {
+      "version": "1.33.0",
+      "resolved": "https://registry.npmjs.org/lightningcss-linux-x64-musl/-/lightningcss-linux-x64-musl-1.33.0.tgz",
+      "integrity": "sha512-RYiYbkokw0trfKqqzfF55lginwEPrD3OJDfTuJzFs1MK6iFnDenaz1fqLLtX4ITG3OktJQXOeTaw1awrBAlZPw==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MPL-2.0",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">= 12.0.0"
+      },
+      "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/parcel"
+      }
+    },
+    "node_modules/lightningcss-win32-arm64-msvc": {
+      "version": "1.33.0",
+      "resolved": "https://registry.npmjs.org/lightningcss-win32-arm64-msvc/-/lightningcss-win32-arm64-msvc-1.33.0.tgz",
+      "integrity": "sha512-1K+MPfLSFVpphzpdbfkhlWk6wBrTObBzS2T6db10PNOZgR9GoVsAWzwNyuhUYYbTp23j+4RrncfujZ4uAzXvwA==",
+      "cpu": [
+        "arm64"
+      ],
+      "dev": true,
+      "license": "MPL-2.0",
+      "optional": true,
+      "os": [
+        "win32"
+      ],
+      "engines": {
+        "node": ">= 12.0.0"
+      },
+      "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/parcel"
+      }
+    },
+    "node_modules/lightningcss-win32-x64-msvc": {
+      "version": "1.33.0",
+      "resolved": "https://registry.npmjs.org/lightningcss-win32-x64-msvc/-/lightningcss-win32-x64-msvc-1.33.0.tgz",
+      "integrity": "sha512-OlEICDx/Xl0FqSp4bry8zFnCvGpig3Gl4gCquvYwHuqJKEC1+n9NgDniFvqHGmMv1ZkqDJrDqKKSykTDX+ehuA==",
+      "cpu": [
+        "x64"
+      ],
+      "dev": true,
+      "license": "MPL-2.0",
+      "optional": true,
+      "os": [
+        "win32"
+      ],
+      "engines": {
+        "node": ">= 12.0.0"
+      },
+      "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/parcel"
+      }
+    },
+    "node_modules/nanoid": {
+      "version": "3.3.19",
+      "resolved": "https://registry.npmjs.org/nanoid/-/nanoid-3.3.19.tgz",
+      "integrity": "sha512-Y2tUNy4ouw6tq5oDSKeQYGOyhkUBhNOcGV/02KC+6kd9eDGqdZd++mjMiIDilrBYvjEnCYvVtsuHCuP+okSfug==",
+      "dev": true,
+      "funding": [
+        {
+          "type": "github",
+          "url": "https://github.com/sponsors/ai"
+        }
+      ],
+      "license": "MIT",
+      "bin": {
+        "nanoid": "bin/nanoid.cjs"
+      },
+      "engines": {
+        "node": "^10 || ^12 || ^13.7 || ^14 || >=15.0.1"
+      }
+    },
+    "node_modules/oxlint": {
+      "version": "1.86.0",
+      "resolved": "https://registry.npmjs.org/oxlint/-/oxlint-1.86.0.tgz",
+      "integrity": "sha512-og0lhgvZfgGF//gOOmZXvtr+GmBbAGEnbEhv/QUg7UW2Wi4wHMnJbnMD+zuHgPdJxdklfgpPupdlAaAySyxrZg==",
+      "dev": true,
+      "license": "MIT",
+      "bin": {
+        "oxlint": "bin/oxlint"
+      },
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      },
+      "funding": {
+        "url": "https://github.com/sponsors/oxc-project"
+      },
+      "optionalDependencies": {
+        "@oxlint/binding-android-arm-eabi": "1.86.0",
+        "@oxlint/binding-android-arm64": "1.86.0",
+        "@oxlint/binding-darwin-arm64": "1.86.0",
+        "@oxlint/binding-darwin-x64": "1.86.0",
+        "@oxlint/binding-freebsd-x64": "1.86.0",
+        "@oxlint/binding-linux-arm-gnueabihf": "1.86.0",
+        "@oxlint/binding-linux-arm-musleabihf": "1.86.0",
+        "@oxlint/binding-linux-arm64-gnu": "1.86.0",
+        "@oxlint/binding-linux-arm64-musl": "1.86.0",
+        "@oxlint/binding-linux-ppc64-gnu": "1.86.0",
+        "@oxlint/binding-linux-riscv64-gnu": "1.86.0",
+        "@oxlint/binding-linux-riscv64-musl": "1.86.0",
+        "@oxlint/binding-linux-s390x-gnu": "1.86.0",
+        "@oxlint/binding-linux-x64-gnu": "1.86.0",
+        "@oxlint/binding-linux-x64-musl": "1.86.0",
+        "@oxlint/binding-openharmony-arm64": "1.86.0",
+        "@oxlint/binding-win32-arm64-msvc": "1.86.0",
+        "@oxlint/binding-win32-ia32-msvc": "1.86.0",
+        "@oxlint/binding-win32-x64-msvc": "1.86.0"
+      },
+      "peerDependencies": {
+        "oxlint-tsgolint": ">=7.0.2003",
+        "vite-plus": "*"
+      },
+      "peerDependenciesMeta": {
+        "oxlint-tsgolint": {
+          "optional": true
+        },
+        "vite-plus": {
+          "optional": true
+        }
+      }
+    },
+    "node_modules/picocolors": {
+      "version": "1.1.1",
+      "resolved": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
+      "integrity": "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==",
+      "dev": true,
+      "license": "ISC"
+    },
+    "node_modules/picomatch": {
+      "version": "4.0.7",
+      "resolved": "https://registry.npmjs.org/picomatch/-/picomatch-4.0.7.tgz",
+      "integrity": "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==",
+      "dev": true,
+      "license": "MIT",
+      "engines": {
+        "node": ">=12"
+      },
+      "funding": {
+        "url": "https://github.com/sponsors/jonschlinkert"
+      }
+    },
+    "node_modules/postcss": {
+      "version": "8.5.28",
+      "resolved": "https://registry.npmjs.org/postcss/-/postcss-8.5.28.tgz",
+      "integrity": "sha512-RRuzqDtt5Y9h3quz5hWhK+TPnsmVs6WwSU6LkJMeY4HstUEDuYTG8UJSdawMRzmzAtV+KEoG8N3Qg2qLy5vM/A==",
+      "dev": true,
+      "funding": [
+        {
+          "type": "opencollective",
+          "url": "https://opencollective.com/postcss/"
+        },
+        {
+          "type": "tidelift",
+          "url": "https://tidelift.com/funding/github/npm/postcss"
+        },
+        {
+          "type": "github",
+          "url": "https://github.com/sponsors/ai"
+        }
+      ],
+      "license": "MIT",
+      "dependencies": {
+        "nanoid": "^3.3.18",
+        "picocolors": "^1.1.1",
+        "source-map-js": "^1.2.1"
+      },
+      "engines": {
+        "node": "^10 || ^12 || >=14"
+      }
+    },
+    "node_modules/react": {
+      "version": "19.3.0",
+      "resolved": "https://registry.npmjs.org/react/-/react-19.3.0.tgz",
+      "integrity": "sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=0.10.0"
+      }
+    },
+    "node_modules/react-dom": {
+      "version": "19.3.0",
+      "resolved": "https://registry.npmjs.org/react-dom/-/react-dom-19.3.0.tgz",
+      "integrity": "sha512-JDk8dgif51OjFoDE70+OT9ICyYr+69HlmihNwp1+Nsfbna3t5sIiCa9ZJktDmQ4/1b/rn26hIAR2uYXDMr5r0Q==",
+      "license": "MIT",
+      "dependencies": {
+        "scheduler": "^0.28.0"
+      },
+      "peerDependencies": {
+        "react": "^19.3.0"
+      }
+    },
+    "node_modules/rolldown": {
+      "version": "1.2.12",
+      "resolved": "https://registry.npmjs.org/rolldown/-/rolldown-1.2.12.tgz",
+      "integrity": "sha512-8wafseiaG80xmXSfqidUNqZcylTlhmPZZt+za2m+js2sFZ8dTNlhIOV2WcbIPx2hgwPBJpEUGFAMZ9bgBBLTSQ==",
+      "dev": true,
+      "license": "MIT",
+      "dependencies": {
+        "@oxc-project/types": "=0.152.0",
+        "@rolldown/pluginutils": "^1.0.0"
+      },
+      "bin": {
+        "rolldown": "bin/cli.mjs"
+      },
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      },
+      "optionalDependencies": {
+        "@rolldown/binding-android-arm-eabi": "1.2.12",
+        "@rolldown/binding-android-arm64": "1.2.12",
+        "@rolldown/binding-darwin-arm64": "1.2.12",
+        "@rolldown/binding-darwin-x64": "1.2.12",
+        "@rolldown/binding-freebsd-x64": "1.2.12",
+        "@rolldown/binding-linux-arm-gnueabihf": "1.2.12",
+        "@rolldown/binding-linux-arm64-gnu": "1.2.12",
+        "@rolldown/binding-linux-arm64-musl": "1.2.12",
+        "@rolldown/binding-linux-ppc64-gnu": "1.2.12",
+        "@rolldown/binding-linux-s390x-gnu": "1.2.12",
+        "@rolldown/binding-linux-x64-gnu": "1.2.12",
+        "@rolldown/binding-linux-x64-musl": "1.2.12",
+        "@rolldown/binding-openharmony-arm64": "1.2.12",
+        "@rolldown/binding-win32-arm64-msvc": "1.2.12",
+        "@rolldown/binding-win32-x64-msvc": "1.2.12"
+      }
+    },
+    "node_modules/scheduler": {
+      "version": "0.28.0",
+      "resolved": "https://registry.npmjs.org/scheduler/-/scheduler-0.28.0.tgz",
+      "integrity": "sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw==",
+      "license": "MIT"
+    },
+    "node_modules/source-map-js": {
+      "version": "1.2.2",
+      "resolved": "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.2.tgz",
+      "integrity": "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==",
+      "dev": true,
+      "license": "BSD-3-Clause",
+      "engines": {
+        "node": ">=0.10.0"
+      }
+    },
+    "node_modules/tinyglobby": {
+      "version": "0.2.17",
+      "resolved": "https://registry.npmjs.org/tinyglobby/-/tinyglobby-0.2.17.tgz",
+      "integrity": "sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==",
+      "dev": true,
+      "license": "MIT",
+      "dependencies": {
+        "fdir": "^6.5.0",
+        "picomatch": "^4.0.4"
+      },
+      "engines": {
+        "node": ">=12.0.0"
+      },
+      "funding": {
+        "url": "https://github.com/sponsors/SuperchupuDev"
+      }
+    },
+    "node_modules/vite": {
+      "version": "8.3.2",
+      "resolved": "https://registry.npmjs.org/vite/-/vite-8.3.2.tgz",
+      "integrity": "sha512-SQr1x6W5vVSbROg7vsyXIaxK9b0G7zsT68acdWWRmnBUsgDieLCRG+Rep9WdZgcposvv/GSnr4GUUBqB3vXq6w==",
+      "dev": true,
+      "license": "MIT",
+      "dependencies": {
+        "lightningcss": "^1.33.0",
+        "picomatch": "^4.0.7",
+        "postcss": "^8.5.28",
+        "rolldown": "~1.2.11",
+        "tinyglobby": "^0.2.17"
+      },
+      "bin": {
+        "vite": "bin/vite.js"
+      },
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      },
+      "funding": {
+        "url": "https://github.com/vitejs/vite?sponsor=1"
+      },
+      "optionalDependencies": {
+        "fsevents": "~2.3.3"
+      },
+      "peerDependencies": {
+        "@types/node": "^20.19.0 || >=22.12.0",
+        "@vitejs/devtools": "^0.7.1",
+        "esbuild": "^0.27.0 || ^0.28.0",
+        "jiti": ">=1.21.0",
+        "less": "^4.0.0",
+        "sass": "^1.70.0",
+        "sass-embedded": "^1.70.0",
+        "stylus": ">=0.54.8",
+        "sugarss": "^5.0.0",
+        "terser": "^5.16.0",
+        "tsx": "^4.8.1",
+        "yaml": "^2.4.2"
+      },
+      "peerDependenciesMeta": {
+        "@types/node": {
+          "optional": true
+        },
+        "@vitejs/devtools": {
+          "optional": true
+        },
+        "esbuild": {
+          "optional": true
+        },
+        "jiti": {
+          "optional": true
+        },
+        "less": {
+          "optional": true
+        },
+        "sass": {
+          "optional": true
+        },
+        "sass-embedded": {
+          "optional": true
+        },
+        "stylus": {
+          "optional": true
+        },
+        "sugarss": {
+          "optional": true
+        },
+        "terser": {
+          "optional": true
+        },
+        "tsx": {
+          "optional": true
+        },
+        "yaml": {
+          "optional": true
+        }
+      }
+    }
+  }
+}
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\frontend\package.json ===
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.81.0",
+    "vite": "^8.3.0"
+  }
+}
+
+
+=== ARCHIVO: C:\Users\Usuario\Documents\GAMO\frontend\vite.config.js ===
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    watch: { usePolling: true },
+  },
+});
+
+

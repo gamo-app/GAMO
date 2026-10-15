@@ -1,4 +1,7 @@
+import hashlib
 import logging
+import os
+import re
 from datetime import date
 from typing import Optional
 
@@ -8,9 +11,33 @@ from supabase import Client
 
 logger = logging.getLogger(__name__)
 
+
 ROLES_SEDE_OBLIGATORIA = {"socio", "profesor", "representante"}
+
 ROLES_CON_DEPORTE = {"representante"}
-TABLAS_ROL = ("socio", "profesor", "representante")
+
+PK_POR_ROL = {
+    "socio": "id_socio",
+    "profesor": "id_profesor",
+    "representante": "id_representante",
+}
+
+
+def _generar_hash_y_salt(password: str) -> tuple[str, str]:
+    """
+    Genera un salt aleatorio de 16 bytes y el hash PBKDF2-HMAC-SHA256.
+    Devuelve (hash_hex, salt_bytea_hex) listo para insertar en PostgreSQL/Supabase.
+    """
+    salt_bytes = os.urandom(16)
+    hash_hex = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt_bytes,
+        100_000,
+    ).hex()
+    
+    salt_bytea = f"\\x{salt_bytes.hex()}"
+    return hash_hex, salt_bytea
 
 
 class UsuarioBase(BaseModel):
@@ -19,8 +46,11 @@ class UsuarioBase(BaseModel):
 
     nombre: str = Field(min_length=1, description="Nombre de la persona")
     apellido: str = Field(min_length=1, description="Apellido de la persona")
-    dni: str = Field(min_length=1, description="Número de documento")
-    telefono: Optional[str] = None
+    dni: str = Field(pattern=r"^\d{7,9}$", description="Número de documento")
+    telefono: Optional[str] = Field(
+        default=None,
+        description="Teléfono (se formatea automáticamente a XX-XXXX-XXXX, ej: 11-5555-1000)",
+    )
     fecha_nacimiento: Optional[date] = Field(
         default=None,
         description="Fecha de nacimiento en formato YYYY-MM-DD (ej: 1998-05-20)",
@@ -32,6 +62,38 @@ class UsuarioBase(BaseModel):
         default=None,
         description="ID de la sede (obligatorio para socio, opcional para otros)",
     )
+
+    @field_validator("telefono", mode="before")
+    @classmethod
+    def formatear_telefono(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v_str = str(v).strip()
+        if not v_str:
+            return None
+
+        
+        digitos = re.sub(r"\D", "", v_str)
+
+        
+        if digitos.startswith("549") and len(digitos) == 13:
+            digitos = digitos[3:]
+        elif digitos.startswith("54") and len(digitos) == 12:
+            digitos = digitos[2:]
+        elif digitos.startswith("0") and len(digitos) == 11:
+            digitos = digitos[1:]
+
+        
+        if len(digitos) == 8:
+            digitos = f"11{digitos}"
+
+        if len(digitos) != 10:
+            raise ValueError(
+                "El teléfono debe contener 10 dígitos (ej: 1155551000 o 11-5555-1000)."
+            )
+
+        # Retornar en formato XX-XXXX-XXXX (ej: 11-7537-4712)
+        return f"{digitos[:2]}-{digitos[2:6]}-{digitos[6:]}"
 
     @field_validator("id_sede", mode="before")
     @classmethod
@@ -58,6 +120,7 @@ def _rollback(supabase: Client, user_id: Optional[str], id_persona: Optional[int
     except Exception:
         logger.exception("Error durante rollback (id_persona=%s, user_id=%s)", id_persona, user_id)
 
+
 def _existe_activo(supabase: Client, tabla: str, columna: str, valor) -> bool:
     """Verifica si un registro existe y se encuentra activo en la base de datos."""
     res = supabase.table(tabla).select(columna).eq(columna, valor).eq("activo", True).execute()
@@ -69,7 +132,7 @@ def crear_usuario_completo(supabase: Client, datos: UsuarioBase) -> dict:
     rol = datos.rol
     id_deporte = getattr(datos, "id_deporte", None) if rol in ROLES_CON_DEPORTE else None
 
-    # 1. Validaciones de negocio específicas por rol
+    
     if rol in ROLES_SEDE_OBLIGATORIA and datos.id_sede is None:
         raise HTTPException(
             status_code=400,
@@ -81,8 +144,8 @@ def crear_usuario_completo(supabase: Client, datos: UsuarioBase) -> dict:
             detail="El representante debe tener un deporte asignado (id_deporte mayor a 0).",
         )
 
-    # 2. Verificar existencia del grupo en la base
-    grupo = supabase.table("grupo_usuario").select("id_grupo").ilike("nombre", f"%{rol}%").execute()
+    
+    grupo = supabase.table("grupo_usuario").select("id_grupo").ilike("nombre", rol).execute()
     if not grupo.data:
         raise HTTPException(
             status_code=400,
@@ -90,7 +153,7 @@ def crear_usuario_completo(supabase: Client, datos: UsuarioBase) -> dict:
         )
     id_grupo = grupo.data[0]["id_grupo"]
 
-    # 3. Validar claves foráneas activas
+    
     if id_deporte is not None and not _existe_activo(supabase, "deporte", "id_deporte", id_deporte):
         raise HTTPException(
             status_code=400,
@@ -102,7 +165,7 @@ def crear_usuario_completo(supabase: Client, datos: UsuarioBase) -> dict:
             detail=f"La sede con ID {datos.id_sede} no existe o está inactiva.",
         )
 
-    # 4. Validar unicidad previa
+    
     if supabase.table("persona").select("id_persona").eq("dni", datos.dni).execute().data:
         raise HTTPException(status_code=409, detail="Ya existe una persona registrada con ese DNI.")
     if supabase.table("usuario").select("id_usuario").eq("email", datos.email).execute().data:
@@ -111,7 +174,7 @@ def crear_usuario_completo(supabase: Client, datos: UsuarioBase) -> dict:
     user_id = None
     id_persona = None
     try:
-        # A. Crear usuario en el servicio Auth de Supabase
+        
         auth_response = supabase.auth.admin.create_user({
             "email": datos.email,
             "password": datos.password,
@@ -119,7 +182,7 @@ def crear_usuario_completo(supabase: Client, datos: UsuarioBase) -> dict:
         })
         user_id = auth_response.user.id
 
-        # B. Registrar en public.persona
+        
         persona_res = supabase.table("persona").insert({
             "nombre": datos.nombre,
             "apellido": datos.apellido,
@@ -129,7 +192,9 @@ def crear_usuario_completo(supabase: Client, datos: UsuarioBase) -> dict:
         }).execute()
         id_persona = persona_res.data[0]["id_persona"]
 
-        # C. Registrar en public.usuario
+        
+        hash_hex, salt_bytea = _generar_hash_y_salt(datos.password)
+
         supabase.table("usuario").insert({
             "id_usuario": user_id,
             "id_persona": id_persona,
@@ -137,23 +202,32 @@ def crear_usuario_completo(supabase: Client, datos: UsuarioBase) -> dict:
             "id_grupo": id_grupo,
             "email": datos.email,
             "nombre_usuario": f"{datos.nombre} {datos.apellido}",
+            "hash": hash_hex,
+            "salt": salt_bytea,
         }).execute()
 
-        # D. Registrar en la tabla correspondiente al rol
+        
         payload = {"id_persona": id_persona}
         if rol == "socio":
             payload["id_sede"] = datos.id_sede
         elif rol == "representante":
             payload["id_deporte"] = id_deporte
 
-        supabase.table(rol).insert(payload).execute()
+        rol_res = supabase.table(rol).insert(payload).execute()
+        datos_rol = rol_res.data[0] if rol_res.data else {}
 
-        return {
+        respuesta = {
             "mensaje": f"{rol.capitalize()} registrado exitosamente en el sistema.",
             "id_usuario": user_id,
             "id_persona": id_persona,
             "rol": rol,
+            PK_POR_ROL[rol]: datos_rol.get(PK_POR_ROL[rol]),
         }
+
+        if rol == "socio" and "codigo_credencial" in datos_rol:
+            respuesta["codigo_credencial"] = datos_rol["codigo_credencial"]
+
+        return respuesta
 
     except HTTPException:
         _rollback(supabase, user_id, id_persona, rol)

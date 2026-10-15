@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const HOY = new Date().toISOString().split("T")[0];
+import { API_URL, HOY, formatearTelefonoInput } from "./utils";
 
 const FORM_INICIAL = {
   nombre: "",
@@ -65,7 +63,7 @@ export default function Admin() {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === "telefono" ? formatearTelefonoInput(value) : value,
     }));
   };
 
@@ -185,10 +183,13 @@ export default function Admin() {
         <div>
           <label>Teléfono:</label>
           <input
-            type="text"
+            type="tel"
             name="telefono"
             value={formData.telefono}
             onChange={handleChange}
+            placeholder="11-5555-1000"
+            pattern="\d{2}-\d{4}-\d{4}"
+            title="Ingresá los 10 dígitos del teléfono (ej: 11-5555-1000)"
             style={{ width: "100%", marginBottom: "10px" }}
           />
         </div>

@@ -8,7 +8,6 @@ router = APIRouter()
 
 
 class UsuarioCreateRecepcion(UsuarioBase):
-   
     rol: Literal["socio", "profesor"]
 
 

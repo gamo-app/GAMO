@@ -6,23 +6,23 @@ from . import admin, recepcion
 router = APIRouter()
 
 
-
 @router.get("/sedes", tags=["Sedes"])
 def listar_sedes(supabase: Client = Depends(get_supabase)):
     res = (
         supabase.table("sede")
-        .select("id_sede, nombre, direccion")
+        .select("id_sede, nombre, direccion, mail, telefono")
         .eq("activo", True)
         .order("nombre")
         .execute()
     )
     return res.data or []
 
+
 @router.get("/deportes", tags=["Deportes"])
 def listar_deportes(supabase: Client = Depends(get_supabase)):
     res = (
         supabase.table("deporte")
-        .select("id_deporte, nombre")
+        .select("id_deporte, nombre, descripcion")
         .eq("activo", True)
         .order("nombre")
         .execute()

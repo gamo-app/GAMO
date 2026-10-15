@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const HOY = new Date().toISOString().split("T")[0];
+import { API_URL, HOY, formatearTelefonoInput } from "./utils";
 
 const FORM_INICIAL = {
   nombre: "",
@@ -45,7 +43,8 @@ export default function Recepcion() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => {
-      const actualizado = { ...prev, [name]: value };
+      const valorFinal = name === "telefono" ? formatearTelefonoInput(value) : value;
+      const actualizado = { ...prev, [name]: valorFinal };
       // Si cambia el rol a "socio" y tenía "Sin sede asignada", preseleccionamos la primera sede
       if (name === "rol" && value === "socio" && !prev.id_sede && sedes.length > 0) {
         actualizado.id_sede = String(sedes[0].id_sede);
@@ -155,10 +154,13 @@ export default function Recepcion() {
         <div>
           <label>Teléfono:</label>
           <input
-            type="text"
+            type="tel"
             name="telefono"
             value={formData.telefono}
             onChange={handleChange}
+            placeholder="11-5555-1000"
+            pattern="\d{2}-\d{4}-\d{4}"
+            title="Ingresá los 10 dígitos del teléfono (ej: 11-5555-1000)"
             style={{ width: "100%", marginBottom: "10px" }}
           />
         </div>
