@@ -6,7 +6,7 @@ import Socioparticular from "./Socioparticular";
 import { getSocios } from "../database/Api";
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-
+import Icon from "../components/Icon";
 type SocioData = {
   id_socio: number;
   id_usuario: string | null;
@@ -96,14 +96,25 @@ function Socios() {
       <section style={{ padding: "0" }}>
         <div className="listabloques columnafija">
           <div className="bloque persistente estirado">
-            <div className="divisorx setentatreinta">
-              <input
+             <div className="divisorx espaciado2">
+            <input
                 type="text"
                 className="blanco"
                 placeholder="Buscar nombre, apellido, DNI o teléfono..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
               />
+              <button className="botoniconoazul">
+                <Icon tipo={3} color={2} ></Icon>
+
+                Buscar
+              </button>
+            </div>
+            <div className="divisorx espaciado2" >
+             
+              <select  className="blanco" name="" id="">
+<option value="">todos</option>
+              </select>
 
               <select
                 className="blanco"
@@ -123,7 +134,7 @@ function Socios() {
                   ))}
               </select>
 
-              <Link to="/agregarsocio" className="azul pc">
+               <Link to="/agregarsocio" className="azul pc">
                 Agregar nuevo socio
               </Link>
             </div>
