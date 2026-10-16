@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+'''from fastapi import APIRouter, Request
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from supabase_config import get_supabase_config
 from workers import fetch
@@ -82,7 +82,9 @@ async def get_socio_by_id(env, id_socio: str):
         )
 
     return await response.json()  
-#----------------------------------------#
+#----------------------------------------#'''
+
+
 
 
 

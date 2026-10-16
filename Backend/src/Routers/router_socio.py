@@ -52,12 +52,21 @@ async def get_socio_by_name(request: Request, nombre: str, apellido: str):
 
 
 #Cambiar el estado de un socio
-@router.post("/persona/{id_persona}/estado/{estado}")
+@router.patch("/persona/{id_persona}/estado/{estado}")
 async def patch_socios_estado(request: Request, id_persona: int, estado: str):
     #falta la auth del usuario para saber si tiene permisos 
     try:
         return await socio.actualizar_estado_usuario_general(request.scope["env"], id_persona,  estado)
     except  HTTPException as e:
         raise HTTPException(400, detail=e.args) 
+
+
     
     
+@router.get("/test/{id_socio}")
+async def test(request : Request, id_socio):
+    try:
+        id = int(id_socio)
+        return await socio.get_estado_pago_socio(request.scope["env"], id_socio)
+    except  HTTPException as e:
+        raise HTTPException(400, detail=e.args) 

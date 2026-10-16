@@ -11,6 +11,7 @@ async def get_all_clases(env):
                 "Authorization": f"Bearer {key}",
             },
         )
+    
 
     if not response.ok:
                 raise HTTPException(
