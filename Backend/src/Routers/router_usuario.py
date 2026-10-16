@@ -55,11 +55,12 @@ async def create_usuario(usuario: UsuarioCreate, request: Request):
 @router.post("/login")
 async def router_login(login: LoginData, request: Request):
     try:
-        return await login(request.scope["env"], login.email, login.password)
+        return await usuario.login(request.scope["env"], login.email, login.password)
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=700, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 
 

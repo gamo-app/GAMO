@@ -1,9 +1,9 @@
-import os
+'''import os
 
 from fastapi import APIRouter, Request
 from fastapi import APIRouter, Depends, HTTPException
 from supabase_config import get_supabase_config
-from model import UsuarioCreate, LoginCreate
+from model import UsuarioCreate, LoginData
 from profesores import get_trainer_by_id
 from workers import fetch
 import uuid
@@ -116,7 +116,7 @@ def get_random_salt() -> bytes:
 
 
 @router.post("/login")
-async def router_login(login: LoginCreate, request: Request):
+async def router_login(login: LoginData, request: Request):
     try:
         return await login(request.scope["env"], login.email, login.password)
     except HTTPException as e:
@@ -187,7 +187,7 @@ async def get_user_from_email(env, email : str):
         )
 
     return await response.json()
-
+'''
 
 '''
 trigger de sql (puede que esté algo mal)
