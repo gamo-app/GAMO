@@ -1,16 +1,17 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import NavBar from "../components/Navbar";
 import Header from "../components/Header";
-import { Link } from "react-router-dom";
 import { storage } from "../database/Storage";
-
-import { useState } from "react";
+import { cerrarSesion } from "../database/Api";
 
 function User() {
   const [modoOscuro, setModoOscuro] = useState(
     storage.get<boolean>("modoOscuro") ?? false
   );
 
-  
+  const navigate = useNavigate();
+
   function cambiarModo(e: React.ChangeEvent<HTMLSelectElement>) {
     const nuevoModo = e.target.value === "true";
 
@@ -18,13 +19,25 @@ function User() {
     storage.set("modoOscuro", nuevoModo);
   }
 
+  async function handleCerrarSesion() {
+    try {
+      await cerrarSesion();
+    } catch (error) {
+      console.error("Error al cerrar sesión en el servidor:", error);
+    } finally {
+      // Eliminar los datos locales de autenticación.
+      storage.remove("sesion");
+
+      // Volver al login.
+      navigate("/", { replace: true });
+    }
+  }
 
   return (
     <main className={modoOscuro ? "dark" : ""}>
-        <Header />
+      <Header />
 
       <section>
-
         <div className="listabloques">
           <div className="bloque">
             <select
@@ -36,12 +49,14 @@ function User() {
               <option value="true">Modo oscuro</option>
             </select>
 
-            <Link to="/" className="rojo">
+            <button
+              type="button"
+              className="rojo"
+              onClick={handleCerrarSesion}
+            >
               Cerrar sesión
-            </Link>
+            </button>
           </div>
-
-         
         </div>
       </section>
 

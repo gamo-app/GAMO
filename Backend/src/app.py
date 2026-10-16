@@ -14,11 +14,11 @@ from Routers import (
     router_sede as sede,
     router_socio as socio,
     router_usuario as usuario,
+    router_login as login,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from Socios import socio, usuario, profesores, representante
 
 
 @asynccontextmanager
@@ -27,6 +27,11 @@ async def lifespan(app:FastAPI):
 
 
 app = FastAPI(title="GAMO API", version="0.1.0", lifespan=lifespan)
+
+app.include_router(login.router,
+                   prefix='/login',
+                   tags=['login'],
+                   responses={404: {"login": "Not Found"}})
 
 app.include_router(asistencia.router,
                    prefix='/asistencia',
