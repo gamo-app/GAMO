@@ -1,7 +1,5 @@
 import NavBar from "../components/Navbar";
-import Icon from "../components/Icon";
 import Main from "../components/Main";
-import { Link } from "react-router-dom";
 import Header from "../components/Header"
 
 type SocioData = {
