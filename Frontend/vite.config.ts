@@ -1,13 +1,21 @@
-import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
-    allowedHosts: [
-      '.trycloudflare.com',
-      '.ngrok-free.app',
-    ],
-  },
+    port: 5173,
+    proxy: {
+      '/login': {
+        target: 'http://localhost:8787', // URL de tu backend FastAPI
+        changeOrigin: true,
+        secure: false,
+      },
+      '/socio': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  }
 })

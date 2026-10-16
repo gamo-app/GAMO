@@ -1,39 +1,53 @@
 
 import { storage } from "./Storage";
 
-const API_URL = import.meta.env.VITE_API_URL;
+// const API_URL = import.meta.env.VITE_API_URL;
 
 export async function api<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const response = await fetch(endpoint, { 
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,
     },
   });
 
+
   if (!response.ok) {
-    const error = await response.text();
+    const errorText = await response.text();
+    let message = errorText;
+
+    try {
+      const parsed = JSON.parse(errorText);
+      message = parsed.detail || parsed.mensaje || errorText;
+    } catch {
+    }
 
     console.error("Error del backend:", {
       endpoint,
       status: response.status,
-      error,
+      error: errorText,
     });
 
-    throw new Error(`Error ${response.status}: ${error}`);
+    throw new Error(message || `Error ${response.status}`);
   }
 
-  return response.json();
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
 }
 
 export async function get<T>(endpoint: string): Promise<T> {
   return api<T>(endpoint, { method: "GET" });
 }
 
+// Obtener socios.
 export async function getSocios<T>() {
   return storage.obtenerDatos<T>(
     "listaSocios",
@@ -41,34 +55,45 @@ export async function getSocios<T>() {
   );
 }
 
-
-type Credenciales = {
+// Autenticación.
+type UsuarioSesion = {
+  id: string;
   email: string;
-  password: string;
 };
 
 type LoginResponse = {
-  jwt: string;
+  mensaje: string;
+  usuario: UsuarioSesion;
+};
+
+type SesionResponse = {
+  autenticado: boolean;
+  usuario: UsuarioSesion;
 };
 
 export async function iniciarSesion(
-  credenciales: Credenciales
+  email: string,
+  password: string
 ): Promise<LoginResponse> {
-  const respuesta = await api<LoginResponse>("/usuario/login", {
+  return api<LoginResponse>("/login/login", {
     method: "POST",
-    body: JSON.stringify(credenciales),
+    body: JSON.stringify({ email, password }),
   });
-
-  // Guardar el JWT en el navegador
-  localStorage.setItem("jwt", respuesta.jwt);
-
-  return respuesta;
 }
 
-export function cerrarSesion(): void {
-  localStorage.removeItem("jwt");
+export async function obtenerSesion(): Promise<SesionResponse> {
+  return api<SesionResponse>("/login/me", {
+    method: "GET",
+  });
 }
 
+export async function cerrarSesion(): Promise<void> {
+  await api<{ mensaje: string }>("/login/logout", {
+    method: "POST",
+  });
+}
+
+// Datos para crear un socio.
 type SocioData = {
   persona: {
     nombre: string;
@@ -93,3 +118,7 @@ export async function setSocio<T>(
     body: JSON.stringify(socio),
   });
 }
+
+
+
+

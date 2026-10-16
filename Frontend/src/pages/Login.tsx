@@ -19,17 +19,15 @@ function Login() {
     setCargando(true);
 
     try {
-      const respuesta = await iniciarSesion({
-        email: correo,
-        password: contrasena,
-      });
+      await iniciarSesion(correo, contrasena);
 
-      console.log("Inicio de sesión correcto:", respuesta);
-
-      navigate("/home");
-    } catch (error) {
-      console.error("Error al iniciar sesión:", error);
-      setError("Correo o contraseña incorrectos.");
+      navigate("/home", { replace: true });
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo iniciar sesión."
+      );
     } finally {
       setCargando(false);
     }
@@ -43,41 +41,47 @@ function Login() {
         <div className="listabloques">
           <form className="bloque espaciado" onSubmit={handleLogin}>
             <div className="input">
-            <label htmlFor="correo">Correo</label>
-            <input
-              id="correo"
-              className="blanco"
-              type="email"
-              placeholder="Correo@mail.com"
-              value={correo}
-              onChange={(e) => setCorreo(e.target.value)}
-              required
-            />
+              <label htmlFor="correo">Correo</label>
+              <input
+                id="correo"
+                className="blanco"
+                type="email"
+                autoComplete="email"
+                placeholder="Correo@mail.com"
+                value={correo}
+                onChange={(e) => setCorreo(e.target.value)}
+                required
+              />
             </div>
-           
+
             <div className="input">
-            <label htmlFor="contrasena">Contraseña</label>
-                        <input
-                          id="contrasena"
-                          className="blanco"
-                          type="password"
-                          placeholder="-----"
-                          value={contrasena}
-                          onChange={(e) => setContrasena(e.target.value)}
-                          required
-                        />
+              <label htmlFor="contrasena">Contraseña</label>
+              <input
+                id="contrasena"
+                className="blanco"
+                type="password"
+                autoComplete="current-password"
+                placeholder="-----"
+                value={contrasena}
+                onChange={(e) => setContrasena(e.target.value)}
+                required
+              />
             </div>
-            
 
             {error && <p role="alert">{error}</p>}
 
-            <button className="azul" type="submit" disabled={cargando}>
+            <button
+              className="azul"
+              type="submit"
+              disabled={cargando}
+            >
               {cargando ? "Iniciando sesión..." : "Iniciar sesión"}
             </button>
 
             <br />
 
             <h4>¿No tiene una cuenta?</h4>
+
             <Link to="/crear" className="blanco">
               Crear cuenta
             </Link>
