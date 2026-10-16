@@ -24,10 +24,20 @@ footer{
     gap: 2vh;
     justify-content: start;
 }
-.estirado .rectangulo,.estirado .azul{
+.estirado .rectangulo{
     max-width: 100%;
 }
-
+.buscar{
+display: flex;
+flex-direction: row;
+justify-content: start;
+align-items: center;
+padding-left: 2vh;
+gap: 1vh;
+width:20vh !important ;
+font-size: 1.8vh  !important ;
+margin-left: 1vh;
+}
 
 header{
     padding-left: 2%;
@@ -35,6 +45,14 @@ header{
 }
 a.escanear{
     display:none;
+}
+.divisorxy{
+  display:flex;
+  gap: 1.5vh;
+    justify-content: center;
+  align-items: center;
+  flex-direction: row;
+
 }
 a.icono{
   display: flex;

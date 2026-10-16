@@ -40,7 +40,25 @@ export async function getSocios<T>() {
     () => get<T>("/socio")
   );
 }
+export async function getProfesores<T>() {
+  return storage.obtenerDatos<T>(
+    "listaSocios",
+    () => get<T>("/socio")
+  );
+}
+export async function getAdmins<T>() {
+  return storage.obtenerDatos<T>(
+    "listaSocios",
+    () => get<T>("/socio")
+  );
+}
 
+export async function getRepresentantes<T>() {
+  return storage.obtenerDatos<T>(
+    "listaSocios",
+    () => get<T>("/socio")
+  );
+}
 
 type Credenciales = {
   email: string;

@@ -31,7 +31,7 @@ function NavBar() {
         {({ isActive }) => (
           <>
             <Icon tipo={11} color={isActive ? 1 : 0} />
-            Socios
+            Gestión
           </>
         )}
       </NavLink>

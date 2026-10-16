@@ -212,6 +212,10 @@ span{
   margin-bottom: 2vh;
 
 }
+details.bloque{
+  gap: 1.5vh;
+   flex-direction: column-reverse;
+}
 .espaciado{
   gap: 2vh;
 }
@@ -297,7 +301,7 @@ position:relative;
   flex-wrap: wrap;
   position: relative;
 }
-details.azul summary{
+details.azul summary,details.bloque summary{
   display: flex;
   justify-content: center;
   align-items: center;
@@ -305,12 +309,11 @@ details.azul summary{
   height: 5vh;
   background-color: var(--azul);
   color: var(--siempreblanco);
-  max-width: 50vh;
   border-radius: 3vh;
   font-weight: 500;
-  margin-bottom: 2vh;
   font-size: 1.6vh;
 }
+
 details.azul input.blanco,details.azul select.blanco {
   margin: 0;
 }
@@ -427,9 +430,26 @@ display: none;
  color: var(--grisoscuro);
  font-size: 0vh;
 }
-.divisorx{
+.divisorx,.divisorx2{
   display:flex;
   gap: 1.5vh;
+    justify-content: center;
+  align-items: center;
+}
+.buscar{
+max-width:5vh ;
+min-width:5vh ;
+font-size: 0vh !important ;
+
+width:5vh !important ;
+margin-left: 1vh;
+}
+
+.divisorxy{
+ 
+ display:flex;
+  gap: 0.5vh;
+  flex-direction: column;
     justify-content: center;
   align-items: center;
 }
@@ -502,6 +522,9 @@ display: none;
 }
 .iconoestado4{
   background-color: var(--gris2);
+}
+.iconoestado5{
+  background-color: var(--azul);
 }
 .barra{
   width: 0.2vh;
@@ -828,6 +851,13 @@ a.escanear{
   display:flex;
   flex-direction: column;
   justify-content: space-between;
+}
+.texto3{
+  height: 4vh;
+  display:flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
 }
 
 
