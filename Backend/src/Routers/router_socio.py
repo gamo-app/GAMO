@@ -61,7 +61,7 @@ async def patch_socios_estado(request: Request, id_persona: int, estado: str):
         raise HTTPException(400, detail=e.args) 
 
 
-    
+'''
     
 @router.get("/test/{id_socio}")
 async def test(request : Request, id_socio):
@@ -69,4 +69,4 @@ async def test(request : Request, id_socio):
         id = int(id_socio)
         return await socio.get_estado_pago_socio(request.scope["env"], id_socio)
     except  HTTPException as e:
-        raise HTTPException(400, detail=e.args) 
+        raise HTTPException(400, detail=e.args) '''

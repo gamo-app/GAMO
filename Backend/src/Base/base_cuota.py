@@ -40,7 +40,6 @@ async def get_cuotas_by_socio(env, id_socio: int):
 
 async def get_cuotas_of_type_by_socio(env, id_socio: int, estado_cuota: EstadoDePagoEnum):
     url, key = get_supabase_config(env)
-    print("b")
     response = await fetch(
         f"{url}/rest/v1/cuota?select=*&estado=eq.{estado_cuota.value}&id_socio=eq.{id_socio}",
             headers={
@@ -48,12 +47,9 @@ async def get_cuotas_of_type_by_socio(env, id_socio: int, estado_cuota: EstadoDe
                 "Authorization": f"Bearer {key}",
             },
         )
-    print("u")
-    print(response)
     if not response.ok:
                 raise HTTPException(
                     status_code=response.status,
                     detail=await response.text(),
                 )    
-    print("r")
     return await response.json()

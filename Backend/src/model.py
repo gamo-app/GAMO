@@ -19,6 +19,11 @@ class EstadoSocioEnum(str, Enum):
     inactivo = "inactivo"
     suspendido = "suspendido"
 
+class EstadoPagoSocioEnum(str, Enum):
+    al_dia = "al dia"
+    pendiente = "pendiente"
+    demorado = "demorado"
+
 
 class EstadoMembresiaEnum(str, Enum):
     activo = "activo"

@@ -3,7 +3,8 @@ from model import EstadoDePagoEnum
 from supabase_config import get_supabase_config
 from workers import fetch
 from Base import base_cuota as cuota
-from model import EstadoDePagoEnum
+from model import EstadoDePagoEnum, EstadoPagoSocioEnum
+
 
 async def get_all_socios(env):
     url, key = get_supabase_config(env)
@@ -90,11 +91,18 @@ async def get_socio_by_name(env, nombre: str, apellido: str):
 
 async def get_estado_pago_socio(env, id_socio):
     print("medie")
-    #vencidas = await cuota.get_cuotas_of_type_by_socio(env, id_socio, EstadoDePagoEnum.pagada)
-    #print(vencidas)
-    #pendientes = await cuota.get_cuotas_of_type_by_socio(env, id_socio, EstadoDePagoEnum.pendiente)
-    #return vencidas
-    return await cuota.get_cuotas_by_socio(env, id_socio)
+    vencidas = await cuota.get_cuotas_of_type_by_socio(env, id_socio, EstadoDePagoEnum.vencida)
+    
+
+
+    if len(vencidas != 0):
+        return EstadoPagoSocioEnum.demorado
+    
+    pendientes = await cuota.get_cuotas_of_type_by_socio(env, id_socio, EstadoDePagoEnum.pendiente)
+    if len(pendientes != 0):
+        return EstadoPagoSocioEnum.pendiente
+    return EstadoPagoSocioEnum.al_dia
+
 
 
 
