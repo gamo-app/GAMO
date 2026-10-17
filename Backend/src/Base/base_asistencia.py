@@ -1,20 +1,21 @@
 from fastapi import HTTPException
+from supabase import create_async_client
 from supabase_config import get_supabase_config
-from workers import fetch
 
-async def get_all_asistencias(env, access_token:str):
+
+async def get_all_asistencias(env, access_token: str):
     url, key = get_supabase_config(env)
-    response = await fetch(
-        f"{url}/rest/v1/asistencia?select=*",
-            headers={
-                "apikey": key,
-                "Authorization": f"Bearer {access_token}",
-            },
-        )
 
-    if not response.ok:
-                raise HTTPException(
-                    status_code=response.status,
-                    detail=await response.text(),
-                )    
-    return await response.json()    
+    supabase = await create_async_client(url, key)
+
+    # Usar el token del usuario para respetar las políticas RLS
+    supabase.postgrest.auth(access_token)
+
+    response = (
+        await supabase
+        .table("asistencia")
+        .select("*")
+        .execute()
+    )
+
+    return response.data
