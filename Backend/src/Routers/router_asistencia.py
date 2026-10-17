@@ -1,10 +1,10 @@
 
 from Base import base_asistencia as asistencia
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
+from auth import validar_sesion
 router = APIRouter()
 
 
 @router.get("")
-async def get_asistencia(request: Request):
-    return await asistencia.get_all_asistencias(request.scope["env"])
-
+async def get_asistencia(request: Request,access_token: str = Depends(validar_sesion), ):
+    return await asistencia.get_all_asistencias(request.scope["env"], access_token)
