@@ -1,6 +1,6 @@
 from supabase import create_async_client
 from supabase_config import get_supabase_config
-
+from fastapi import HTTPException
 
 async def get_all_representantes(env, access_token: str):
     url, key = get_supabase_config(env)
