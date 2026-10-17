@@ -1,7 +1,11 @@
-from fastapi import HTTPException, Request, APIRouter
-from model import SocioAltaCreate
-from model import UsuarioCreate, LoginData
+from fastapi import HTTPException, Request, APIRouter, status, Query
+from model import SocioAltaCreate, UsuarioCreate, LoginData
 from Base import base_usuario as usuario
+from Base.base_alta_usuario import (
+    UsuarioCreateAdmin,
+    UsuarioCreateRecepcion,
+    crear_usuario_completo,
+)
 
 router = APIRouter()
 
@@ -38,9 +42,9 @@ async def get_usuarios(request: Request):
     
     
 @router.post("")
-async def create_usuario(usuario: UsuarioCreate, request: Request):
+async def create_usuario(datos: UsuarioCreate, request: Request):
     try:
-        usuario_dict = usuario.model_dump(mode="json")
+        usuario_dict = datos.model_dump(mode="json")
         
         password = usuario_dict.pop("password")
         
@@ -55,11 +59,31 @@ async def create_usuario(usuario: UsuarioCreate, request: Request):
 @router.post("/login")
 async def router_login(login: LoginData, request: Request):
     try:
-        return await login(request.scope["env"], login.email, login.password)
+        return await usuario.login(request.scope["env"], login.email, login.password)
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=700, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post(
+    "/admin",
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear usuario (Administrador)",
+    description="Permite registrar usuarios con rol socio, profesor o representante asignando obligatoriamente una sede.",
+)
+async def crear_usuario_admin(datos: UsuarioCreateAdmin, request: Request):
+    return await crear_usuario_completo(request.scope["env"], datos)
+
+@router.post(
+    "/recepcion",
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear usuario (Recepción)",
+    description="Permite registrar exclusivamente usuarios con rol socio o profesor.",
+)
+async def crear_usuario_recepcion(datos: UsuarioCreateRecepcion, request: Request):
+    return await crear_usuario_completo(request.scope["env"], datos)
+
+
 
 
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, HTTPException
+'''from fastapi import APIRouter, Request, HTTPException
 from supabase_config import get_supabase_config
 from workers import fetch
 
@@ -195,4 +195,4 @@ async def get_sesion(env, id_usuario: str):
         "socio": socios[0] if socios else None,
         "profesor": profesores[0] if profesores else None,
         "representante": representantes[0] if representantes else None
-    }
+    }'''

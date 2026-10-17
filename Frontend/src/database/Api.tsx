@@ -1,16 +1,19 @@
-
 import { storage } from "./Storage";
 
-const API_URL = import.meta.env.VITE_API_URL;
+export const API_URL =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8787";
 
-export async function api<T>(
+  export async function api<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
+  const token = localStorage.getItem("jwt");
+
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options?.headers,
     },
   });
@@ -34,13 +37,57 @@ export async function get<T>(endpoint: string): Promise<T> {
   return api<T>(endpoint, { method: "GET" });
 }
 
+// ==========================================
+// TIPOS ALINEADOS CON base_socio.py
+// ==========================================
+
+export interface SocioData {
+  id_socio: number;
+  id_persona?: number | null;
+  id_sede?: number | null;
+  codigo_credencial?: string | null;
+  sede?: string | null;
+  nombre?: string | null;
+  apellido?: string | null;
+  dni?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  estado?: "activo" | "inactivo" | "suspendido" | string | null;
+  plan?: string | null;
+  fecha_alta?: string | null;
+  fecha_vencimiento?: string | null;
+  estado_cuota?: "pagada" | "pendiente" | "vencida" | "sin_cuota" | string | null;
+  monto_cuota?: number | null;
+}
 export async function getSocios<T>() {
   return storage.obtenerDatos<T>(
     "listaSocios",
     () => get<T>("/socio")
   );
 }
+export async function getProfesores<T>() {
+  return storage.obtenerDatos<T>(
+    "listaSocios",
+    () => get<T>("/socio")
+  );
+}
+export async function getAdmins<T>() {
+  return storage.obtenerDatos<T>(
+    "listaSocios",
+    () => get<T>("/socio")
+  );
+}
 
+export async function getRepresentantes<T>() {
+  return storage.obtenerDatos<T>(
+    "listaSocios",
+    () => get<T>("/socio")
+  );
+}
+
+// ==========================================
+// AUTENTICACIÓN Y ALTA DE SOCIO
+// ==========================================
 
 type Credenciales = {
   email: string;
@@ -59,9 +106,7 @@ export async function iniciarSesion(
     body: JSON.stringify(credenciales),
   });
 
-  // Guardar el JWT en el navegador
   localStorage.setItem("jwt", respuesta.jwt);
-
   return respuesta;
 }
 
@@ -69,7 +114,7 @@ export function cerrarSesion(): void {
   localStorage.removeItem("jwt");
 }
 
-type SocioData = {
+type NuevoSocioPayload = {
   persona: {
     nombre: string;
     apellido: string;
@@ -85,10 +130,31 @@ type SocioData = {
   id_plan: number;
 };
 
-export async function setSocio<T>(
-  socio: SocioData
-): Promise<T> {
-  return api<T>("/socio", {
+export async function setSocio<T>(socio: NuevoSocioPayload): Promise<T> {
+  storage.invalidar("listaSocios");
+  return api<T>("/usuario/socio", { 
+    method: "POST",
+    body: JSON.stringify(socio),
+  });
+}
+
+export async function setRepresentante<T>(socio: NuevoSocioPayload): Promise<T> {
+  storage.invalidar("listaSocios");
+  return api<T>("/usuario/socio", { 
+    method: "POST",
+    body: JSON.stringify(socio),
+  });
+}
+export async function setProfesor<T>(socio: NuevoSocioPayload): Promise<T> {
+  storage.invalidar("listaSocios");
+  return api<T>("/usuario/socio", { 
+    method: "POST",
+    body: JSON.stringify(socio),
+  });
+}
+export async function setAdmin<T>(socio: NuevoSocioPayload): Promise<T> {
+  storage.invalidar("listaSocios");
+  return api<T>("/usuario/socio", { 
     method: "POST",
     body: JSON.stringify(socio),
   });

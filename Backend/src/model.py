@@ -61,7 +61,7 @@ class SocioCreate(BaseModel):
 class SocioAltaCreate(BaseModel):
     persona: PersonaCreate
     usuario: UsuarioCreate
-
+    id_plan: int = Field(gt=0)
 
 # Modelo para representar un socio en una respuesta
 class Socio(BaseModel):
@@ -110,4 +110,8 @@ class SocioAltaCreate(BaseModel):
 
 class LoginData(BaseModel):
     email: str
+    password: str
+
+class LoginCreate(BaseModel):
+    username: str  # o email
     password: str

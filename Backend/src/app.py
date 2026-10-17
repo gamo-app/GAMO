@@ -18,7 +18,7 @@ from Routers import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from Socios import socio, usuario, profesores
+#from Socios import socio, usuario, profesores, representante
 
 
 @asynccontextmanager

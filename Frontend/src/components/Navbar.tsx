@@ -27,11 +27,11 @@ function NavBar() {
         <Icon tipo={4} color={2} tamaño={2.5} />
       </NavLink>
 
-     {rol != "socio" ? <NavLink to="/socios" className="icono">
+     {rol != "socio" ? <NavLink to="/gestion" className="icono">
         {({ isActive }) => (
           <>
             <Icon tipo={11} color={isActive ? 1 : 0} />
-            Socios
+            Gestión
           </>
         )}
       </NavLink>

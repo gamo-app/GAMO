@@ -1,93 +1,140 @@
+/*import { useState, useEffect, useCallback } from "react";
+import { useParams, Link } from "react-router-dom";
 import NavBar from "../components/Navbar";
 import Header from "../components/Header";
 import Socio from "../components/Socio";
 import Main from "../components/Main";
 import Socioparticular from "./Socioparticular";
-import { getSocios } from "../database/Api";
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
-
-type SocioData = {
-  id_socio: number;
-  id_usuario: string | null;
-  nombre: string;
-  apellido: string;
-  id_sede: number;
-  id_plan: number;
-  fecha_alta: string;
-  estado: string;
-  telefono: string;
-  dni: string;
-};
+import Icon from "../components/Icon";
+import {
+  getSociosFiltrados,
+  cambiarEstadoSocio,
+} from "../database/Api";
+import type { SocioData, PaginacionInfo } from "../database/Api";
 
 function Socios() {
   const { id } = useParams();
 
   const [respuesta, setRespuesta] = useState<SocioData[]>([]);
+  const [paginacion, setPaginacion] = useState<PaginacionInfo>({
+    paginaActual: 1,
+    elementosPorPagina: 20,
+    totalPaginas: 1,
+    totalSocios: 0,
+  });
   const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filtros
   const [busqueda, setBusqueda] = useState("");
-  const [sede, setSede] = useState("");
+  const [busquedaDebounced, setBusquedaDebounced] = useState("");
+  const [planFiltro, setPlanFiltro] = useState("");
   const [estado, setEstado] = useState("");
 
-  useEffect(() => {
-    getSocios<SocioData[]>()
-      .then((resultado) => {
-        setRespuesta(resultado);
-      })
-      .catch((error) => {
-        console.error("Error al cargar socios:", error);
-      })
-      .finally(() => {
+  const cargarSocios = useCallback(
+    async (pagina = 1, termino = "") => {
+      setCargando(true);
+      setError(null);
+
+      try {
+        const resultado = await getSociosFiltrados(pagina, 20, termino);
+        setRespuesta(resultado.datos || []);
+        if (resultado.paginacion) {
+          setPaginacion(resultado.paginacion);
+        }
+      } catch (err) {
+        console.error("Error al cargar socios:", err);
+        setError(
+          "No se pudieron cargar los socios. Verificá que el backend esté corriendo."
+        );
+      } finally {
         setCargando(false);
-      });
-  }, []);
+      }
+    },
+    []
+  );
 
-  // Buscar por nombre, apellido, DNI o teléfono
+  // Debounce de 400ms para el texto buscado
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBusquedaDebounced(busqueda);
+      setPaginacion((prev) =>
+        prev.paginaActual === 1 ? prev : { ...prev, paginaActual: 1 }
+      );
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [busqueda]);
+
+  // Único efecto encargado de disparar la consulta al backend
+  useEffect(() => {
+    cargarSocios(paginacion.paginaActual, busquedaDebounced);
+  }, [paginacion.paginaActual, busquedaDebounced, cargarSocios]);
+
+  const handleCambiarEstadoSocio = async (socio: SocioData) => {
+    if (!socio.id_persona) {
+      alert(
+        "Falta id_persona en la respuesta del backend. Asegurate de agregarlo en base_socio.py."
+      );
+      return;
+    }
+
+    const nuevoEstado =
+      socio.estado === "inactivo" ? "activo" : "inactivo";
+
+    try {
+      await cambiarEstadoSocio(socio.id_persona, nuevoEstado);
+      await cargarSocios(paginacion.paginaActual, busquedaDebounced);
+    } catch (err) {
+      console.error("Error al actualizar estado del socio:", err);
+      alert("No se pudo actualizar el estado del socio.");
+    }
+  };
+
+  // Filtros locales complementarios (Plan y Estado / Morosos)
   const sociosFiltrados = respuesta.filter((socio) => {
-    const texto = busqueda.trim().toLowerCase();
+    const coincidePlan =
+      planFiltro === "" || (socio.plan ?? "") === planFiltro;
 
-    const coincideBusqueda =
-      texto === "" ||
-      `${socio.nombre} ${socio.apellido}`.toLowerCase().includes(texto) ||
-      `${socio.apellido} ${socio.nombre}`.toLowerCase().includes(texto) ||
-      socio.dni.includes(texto) ||
-      socio.telefono.includes(texto);
-
-    const coincideSede =
-      sede === "" || socio.id_sede === Number(sede);
-
-    const estadoSocio = socio.estado.toLowerCase().trim();
+    const estadoSocio = (socio.estado ?? "").toLowerCase().trim();
+    const estadoCuota = (socio.estado_cuota ?? "").toLowerCase().trim();
 
     const coincideEstado =
       estado === "" ||
       (estado === "morosos"
-        ? false // Reemplazar cuando tengas el dato real de deuda
+        ? estadoCuota === "vencida"
         : estadoSocio === estado);
 
-    return coincideBusqueda && coincideSede && coincideEstado;
+    return coincidePlan && coincideEstado;
   });
 
+  // Vista de detalle de un socio particular (/socios/:id)
   if (id) {
     if (cargando) {
       return <Main>Cargando socio...</Main>;
     }
 
-    const socio = respuesta.find(
-      (s) => s.id_socio === Number(id)
-    );
+    const socio = respuesta.find((s) => s.id_socio === Number(id));
 
     if (!socio) {
       return <Main>Socio no encontrado</Main>;
     }
 
-    return <Socioparticular socio={socio} />;
+    return (
+      <Socioparticular
+        socio={socio}
+        onCambiarEstado={handleCambiarEstadoSocio}
+      />
+    );
   }
 
-  const cambiarEstado = (nuevoEstado: string) => {
-    setEstado(nuevoEstado);
-  };
+  const planesDisponibles = Array.from(
+    new Set(
+      respuesta
+        .map((s) => s.plan)
+        .filter((p): p is string => Boolean(p))
+    )
+  );
 
   return (
     <Main>
@@ -96,31 +143,36 @@ function Socios() {
       <section style={{ padding: "0" }}>
         <div className="listabloques columnafija">
           <div className="bloque persistente estirado">
-            <div className="divisorx setentatreinta">
+            <div className="divisorx espaciado2">
               <input
                 type="text"
                 className="blanco"
-                placeholder="Buscar nombre, apellido, DNI o teléfono..."
+                placeholder="Buscar por nombre, apellido o DNI..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
               />
+              <button
+                type="button"
+                className="botoniconoazul"
+                onClick={() => cargarSocios(1, busqueda)}
+              >
+                <Icon tipo={3} color={2} />
+                Buscar
+              </button>
+            </div>
 
+            <div className="divisorx espaciado2">
               <select
                 className="blanco"
-                value={sede}
-                onChange={(e) => setSede(e.target.value)}
+                value={planFiltro}
+                onChange={(e) => setPlanFiltro(e.target.value)}
               >
-                <option value="">Todas las sedes</option>
-
-                {Array.from(
-                  new Set(respuesta.map((socio) => socio.id_sede))
-                )
-                  .sort((a, b) => a - b)
-                  .map((idSede) => (
-                    <option key={idSede} value={idSede}>
-                      Sede {idSede}
-                    </option>
-                  ))}
+                <option value="">Todos los planes</option>
+                {planesDisponibles.map((plan) => (
+                  <option key={plan} value={plan}>
+                    {plan}
+                  </option>
+                ))}
               </select>
 
               <Link to="/agregarsocio" className="azul pc">
@@ -142,7 +194,7 @@ function Socios() {
                     className={`${
                       estado === filtro.valor ? "azul" : "blanco"
                     } miniboton`}
-                    onClick={() => cambiarEstado(filtro.valor)}
+                    onClick={() => setEstado(filtro.valor)}
                   >
                     {filtro.texto}
                   </button>
@@ -152,6 +204,14 @@ function Socios() {
           </div>
 
           <div className="bloque estirado">
+            {error && (
+              <div className="listay">
+                <p style={{ color: "var(--rojo)", fontWeight: "bold" }}>
+                  {error}
+                </p>
+              </div>
+            )}
+
             {cargando ? (
               <>
                 <Socio carga={true} />
@@ -173,9 +233,52 @@ function Socios() {
                 <Socio
                   key={socio.id_socio}
                   socio={socio}
+                  sede={socio.sede ?? undefined}
                   carga={false}
+                  onCambiarEstado={handleCambiarEstadoSocio}
                 />
               ))
+            )}
+
+        
+            {!cargando && paginacion.totalSocios > 0 && (
+              <div className="bloque4" style={{ marginTop: "1vh" }}>
+                <p>
+                  Página {paginacion.paginaActual} de{" "}
+                  {paginacion.totalPaginas || 1} ({paginacion.totalSocios}{" "}
+                  socios)
+                </p>
+                <div className="divisorx">
+                  <button
+                    type="button"
+                    className="blanco miniboton"
+                    disabled={paginacion.paginaActual <= 1}
+                    onClick={() =>
+                      setPaginacion((prev) => ({
+                        ...prev,
+                        paginaActual: prev.paginaActual - 1,
+                      }))
+                    }
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    className="azul miniboton"
+                    disabled={
+                      paginacion.paginaActual >= paginacion.totalPaginas
+                    }
+                    onClick={() =>
+                      setPaginacion((prev) => ({
+                        ...prev,
+                        paginaActual: prev.paginaActual + 1,
+                      }))
+                    }
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
             )}
 
             <br />
@@ -193,3 +296,4 @@ function Socios() {
 }
 
 export default Socios;
+*/
