@@ -1,9 +1,10 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Main from "../components/Main";
+import { storage } from "../database/Storage";
 import { iniciarSesion } from "../database/Api";
+import Presentacion from "./Presentacion";
 
 function Login() {
   const navigate = useNavigate();
@@ -12,6 +13,30 @@ function Login() {
   const [contrasena, setContrasena] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
+
+  const [mostrarPresentacion, setMostrarPresentacion] = useState(
+   true
+  );
+  const [desapareciendo, setDesapareciendo] = useState(false);
+
+  useEffect(() => {
+    if (!mostrarPresentacion) return;
+
+    storage.set("presentacionVista", true);
+
+    const timer = window.setTimeout(() => {
+      setDesapareciendo(true);
+    }, 2000);
+
+    const timerEliminar = window.setTimeout(() => {
+      setMostrarPresentacion(false);
+    }, 2500);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(timerEliminar);
+    };
+  }, [mostrarPresentacion]);
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -25,7 +50,6 @@ function Login() {
       });
 
       console.log("Inicio de sesión correcto:", respuesta);
-
       navigate("/home");
     } catch (error) {
       console.error("Error al iniciar sesión:", error);
@@ -37,37 +61,40 @@ function Login() {
 
   return (
     <Main>
+      {mostrarPresentacion && (
+         <Presentacion />
+      )}
+
       <Header />
 
       <section className="login">
         <div className="listabloques">
           <form className="bloque espaciado" onSubmit={handleLogin}>
             <div className="input">
-            <label htmlFor="correo">Correo</label>
-            <input
-              id="correo"
-              className="blanco"
-              type="email"
-              placeholder="Correo@mail.com"
-              value={correo}
-              onChange={(e) => setCorreo(e.target.value)}
-              required
-            />
+              <label htmlFor="correo">Correo</label>
+              <input
+                id="correo"
+                className="blanco"
+                type="email"
+                placeholder="Correo@mail.com"
+                value={correo}
+                onChange={(e) => setCorreo(e.target.value)}
+                required
+              />
             </div>
-           
+
             <div className="input">
-            <label htmlFor="contrasena">Contraseña</label>
-                        <input
-                          id="contrasena"
-                          className="blanco"
-                          type="password"
-                          placeholder="-----"
-                          value={contrasena}
-                          onChange={(e) => setContrasena(e.target.value)}
-                          required
-                        />
+              <label htmlFor="contrasena">Contraseña</label>
+              <input
+                id="contrasena"
+                className="blanco"
+                type="password"
+                placeholder="-----"
+                value={contrasena}
+                onChange={(e) => setContrasena(e.target.value)}
+                required
+              />
             </div>
-            
 
             {error && <p role="alert">{error}</p>}
 

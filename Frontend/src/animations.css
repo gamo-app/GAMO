@@ -20,6 +20,7 @@
 
   }
 }
+
 .proceso {
   animation: proceso 1s  steps(1) infinite;
 }
@@ -33,6 +34,20 @@
   }
   100%{
     transform: scaleX(1);
+
+  }
+}
+.desaparecer{
+  animation: desaparecer 0.5s both;
+  animation-delay: 2s;
+}
+@keyframes desaparecer {
+  0%{
+    opacity: 1;
+  }
+
+  100%{
+   opacity: 0;
 
   }
 }

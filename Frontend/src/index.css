@@ -110,6 +110,15 @@ section.centro{
   align-items: center;
   flex-direction: column;
 }
+section.azul{
+  background-color: var(--azul);
+}
+.logoanimado{
+  width: 100vw;
+  max-width: 40vh;
+  padding: 2.2vh;
+  margin-bottom: 10vh;
+}
 main.login{
    grid-template: 
    "HEA HEA HEA" auto

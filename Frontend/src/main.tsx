@@ -11,6 +11,7 @@ import Error from './pages/404'
 import Gestion from './pages/Gestion'
 //import Socios from './pages/Socios'
 import Agregarsocio from './pages/Agregarsocio'
+
 // @ts-expect-error El módulo JSX no tiene declaración de tipos
 import Admin from './pages/admin.jsx'
 // @ts-expect-error El módulo JSX no tiene declaración de tipos
