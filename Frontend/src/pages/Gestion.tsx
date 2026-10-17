@@ -249,7 +249,13 @@ const sociosVisibles = sociosFiltrados.slice(0, limite);
           </details>
 
           <div className="bloque estirado">
-          <div className={respuesta.length === 0 || sociosFiltrados.length === 0 ? "listay" : "listay3"}>
+        <div
+  className={
+    cargando || (respuesta.length > 0 && sociosFiltrados.length > 0)
+      ? "listay3"
+      : "listay"
+  }
+>
               <Link
                 to={`/agregar/${rutasAgregar[tipo].ruta}`}
                 className="rectangulo"
@@ -278,6 +284,7 @@ const sociosVisibles = sociosFiltrados.slice(0, limite);
                   <Socio carga={true} />
                   <Socio carga={true} />
                   <Socio carga={true} />
+                  
                 </>
               ) : respuesta.length === 0 ? (
                 <>
