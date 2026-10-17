@@ -1,62 +1,83 @@
-from fastapi import HTTPException
+from supabase import create_async_client
 from supabase_config import get_supabase_config
-from workers import fetch
+from fastapi import HTTPException
 
-async def get_all_socios(env, access_token:str):
+async def get_all_socios(env, access_token: str):
     url, key = get_supabase_config(env)
-    response = await fetch(
-        f"{url}/rest/v1/socio?select=*",
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {access_token}",
-        },
-    )
+    try:
+        supabase = await create_async_client(url, key)
+        supabase.postgrest.auth(access_token)
 
-    if not response.ok:
-        raise HTTPException(
-            status_code=response.status,
-            detail=await response.text(),
+        response = (
+            await supabase
+            .table("socio")
+            .select("*")
+            .execute()
         )
+    except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error al obtener las clases: {str(e)}"
+            )
+    return response.data
 
-    return await response.json()
 
-async def socio_all_estado(env, rol: str , estado: str):
+async def socio_all_estado(env, rol: str, estado: str, access_token: str):
     url, key = get_supabase_config(env)
-    
-    response = await fetch(
-        f"{url}/rest/v1/socio?select=id_socio,estado,persona!inner(telefono,nombre,apellido,usuario!inner(email,grupo_usuario!inner(nombre)))&persona.usuario.grupo_usuario.nombre=eq.{rol}&estado=eq.{estado}",
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-        },
-    )
+    try:
+        supabase = await create_async_client(url, key)
+        supabase.postgrest.auth(access_token)
 
-    if not response.ok:
-        raise HTTPException(
-            status_code=response.status,
-            detail=await response.text(),
+        response = (
+            await supabase
+            .table("socio")
+            .select(
+                "id_socio,estado,"
+                "persona!inner("
+                    "telefono,nombre,apellido,"
+                    "usuario!inner("
+                        "email,"
+                        "grupo_usuario!inner(nombre)"
+                    ")"
+                ")"
+            )
+            .eq("persona.usuario.grupo_usuario.nombre", rol)
+            .eq("estado", estado)
+            .execute()
         )
+    except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error al obtener las clases: {str(e)}"
+            )
+    return response.data
 
-    return await response.json()    
 
-async def actualizar_estado_usuario_general(env, id_persona: int, estado: str):
-    
-  url, key = get_supabase_config(env)
-  response = await fetch(
-      f"{url}/rest/v1/rpc/actualizar_estado_usuario_general",
-      method="POST",
-      headers={
-          "apikey": key,
-          "Authorization": f"Bearer {key}",
-          "Content-Type": "application/json",
-      },
-      body={
-          "p_id_persona": id_persona,
-          "p_nuevo_estado": estado,
-      },
-  )
+async def actualizar_estado_usuario_general(
+    env,
+    id_persona: int,
+    estado: str,
+    access_token: str,
+):
+    url, key = get_supabase_config(env)
+    try:
+        supabase = await create_async_client(url, key)
+        supabase.postgrest.auth(access_token)
 
-  if not response.ok:
-    raise HTTPException(status_code=response.status, detail=await response.text())
-  resultado = await response.json()
-  return {"status": "success", "message": "Estado actualizado correctamente", "data": resultado}
+        resultado = await supabase.rpc(
+            "actualizar_estado_usuario_general",
+            {
+                "p_id_persona": id_persona,
+                "p_nuevo_estado": estado,
+            },
+        ).execute()
+    except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error al obtener las clases: {str(e)}"
+            )
+    return {
+        "status": "success",
+        "message": "Estado actualizado correctamente",
+        "data": resultado.data,
+    }
