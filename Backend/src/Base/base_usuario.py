@@ -20,13 +20,23 @@ def get_random_salt() -> bytes:
 async def login(env, email : str, password : str):
 
     user = await get_user_from_email(env, email)
+    print(user)
+    
+    if not user:
+        return {"message" : "Mail o contraseña incorrectos"}
+
+   
     salt : bytes = user.get("salt", None)
+    if salt is None:
+        return {"message" : "Error de base de datos, campo faltante. Avisar a soporte."}
+    
 
     hashed_object : str = hash(password, salt)
     if hashed_object == user.get("hash", None):
         return {"jwt": await generate_jwt(env, user.get("id_usuario"))}
     else:
-        return {"jwt_falso": jwt.encode({"user_id": "68b79ba5-e7b6-4e2c-a9d2-38d46b1772c4", "group" : "Socio"}, JWT_SECRET, algorithm="HS256")}
+        return {"message" : "Mail o contraseña incorrectos"}
+        #return {"jwt_falso": jwt.encode({"user_id": "68b79ba5-e7b6-4e2c-a9d2-38d46b1772c4", "group" : "Socio"}, JWT_SECRET, algorithm="HS256")}
  
 async def generate_jwt(env, user_id: str):
     payload = {
@@ -40,7 +50,7 @@ async def generate_jwt(env, user_id: str):
 async def get_user_from_email(env, email : str):
     url, key = get_supabase_config(env)
     response = await fetch(
-        f"{url}/rest/v1/usuario?email=eq.{email.strip()}&select=*",
+        f"{url}/rest/v1/usuario?email=eq.{email.strip()}&select=*&limit=1",
         headers={
             "apikey": key,
             "Authorization": f"Bearer {key}",
@@ -53,7 +63,14 @@ async def get_user_from_email(env, email : str):
             detail=await response.text(),
         )
 
-    return await response.json()
+    result = await response.json()
+
+    if result:
+        return result[0]
+
+    return []
+
+
 
 async def get_user_group(env, user_id: str):
     url, key = get_supabase_config(env)
