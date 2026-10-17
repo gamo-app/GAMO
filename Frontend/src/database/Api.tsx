@@ -59,6 +59,12 @@ export interface SocioData {
   estado_cuota?: "pagada" | "pendiente" | "vencida" | "sin_cuota" | string | null;
   monto_cuota?: number | null;
 }
+export async function getSocios<T>() {
+  return storage.obtenerDatos<T>(
+    "listaSocios",
+    () => get<T>("/socio")
+  );
+}
 export async function getProfesores<T>() {
   return storage.obtenerDatos<T>(
     "listaSocios",
@@ -125,6 +131,28 @@ type NuevoSocioPayload = {
 };
 
 export async function setSocio<T>(socio: NuevoSocioPayload): Promise<T> {
+  storage.invalidar("listaSocios");
+  return api<T>("/usuario/socio", { 
+    method: "POST",
+    body: JSON.stringify(socio),
+  });
+}
+
+export async function setRepresentante<T>(socio: NuevoSocioPayload): Promise<T> {
+  storage.invalidar("listaSocios");
+  return api<T>("/usuario/socio", { 
+    method: "POST",
+    body: JSON.stringify(socio),
+  });
+}
+export async function setProfesor<T>(socio: NuevoSocioPayload): Promise<T> {
+  storage.invalidar("listaSocios");
+  return api<T>("/usuario/socio", { 
+    method: "POST",
+    body: JSON.stringify(socio),
+  });
+}
+export async function setAdmin<T>(socio: NuevoSocioPayload): Promise<T> {
   storage.invalidar("listaSocios");
   return api<T>("/usuario/socio", { 
     method: "POST",

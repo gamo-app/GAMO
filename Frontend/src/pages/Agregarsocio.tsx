@@ -2,12 +2,47 @@
 import NavBar from "../components/Navbar";
 import Icon from "../components/Icon";
 import Main from "../components/Main";
-import { Link, useNavigate } from "react-router-dom";
-import { setSocio, setRepresentante, setProfesor, setAdmin } from "../database/Api";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  setSocio,
+  setRepresentante,
+  setProfesor,
+  setAdmin,
+} from "../database/Api";
 import { useState } from "react";
+
+type TipoUsuario = "socio" | "admin" | "profesor" | "representante";
 
 function Agregarsocio() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Detectar el tipo de usuario desde la URL.
+  // Si no hay tipo reconocido, se usa socio.
+  const partes = location.pathname.split("/").filter(Boolean);
+  const ultimoSegmento = partes[partes.length - 1];
+
+  const tipoUsuario: TipoUsuario =
+    ultimoSegmento === "admin" ||
+    ultimoSegmento === "profesor" ||
+    ultimoSegmento === "representante" ||
+    ultimoSegmento === "socio"
+      ? ultimoSegmento
+      : "socio";
+
+  const titulos: Record<TipoUsuario, string> = {
+    socio: "Agregar socio",
+    admin: "Agregar administrador",
+    profesor: "Agregar profesor",
+    representante: "Agregar representante",
+  };
+
+  const nombreTipo: Record<TipoUsuario, string> = {
+    socio: "socio",
+    admin: "administrador",
+    profesor: "profesor",
+    representante: "representante",
+  };
 
   const [formulario, setFormulario] = useState({
     nombre: "",
@@ -35,32 +70,54 @@ function Agregarsocio() {
     }));
   }
 
-  async function crearSocio(e: React.FormEvent<HTMLFormElement>) {
+  async function crearUsuario(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setCargando(true);
     setError("");
 
     try {
-      await setSocio({
-        persona: {
-          nombre: formulario.nombre,
-          apellido: formulario.apellido,
-          dni: formulario.dni,
-          telefono: formulario.telefono,
-          fecha_nacimiento: formulario.fecha_nacimiento,
-        },
-        usuario: {
-          email: formulario.email,
-          nombre_usuario: formulario.nombre_usuario,
-          password: formulario.password,
-        },
-        id_plan: Number(formulario.id_plan),
-      });
+      
+const datos = {
+  persona: {
+    nombre: formulario.nombre,
+    apellido: formulario.apellido,
+    dni: formulario.dni,
+    telefono: formulario.telefono,
+    fecha_nacimiento: formulario.fecha_nacimiento,
+  },
+  usuario: {
+    email: formulario.email,
+    nombre_usuario: formulario.nombre_usuario,
+    password: formulario.password,
+  },
+  id_plan: Number(formulario.id_plan) || 1,
+};
 
-      navigate("/socios");
-    } catch (error) {
-      console.error("Error al crear socio:", error);
-      setError("No se pudo crear el socio. Intentá nuevamente.");
+
+      switch (tipoUsuario) {
+        case "socio":
+        await setSocio(datos);
+          break;
+
+        case "admin":
+          await setAdmin(datos);
+          break;
+
+        case "profesor":
+          await setProfesor(datos);
+          break;
+
+        case "representante":
+          await setRepresentante(datos);
+          break;
+      }
+
+      navigate("/gestion");
+    } catch (err) {
+      console.error(`Error al crear ${nombreTipo[tipoUsuario]}:`, err);
+      setError(
+        `No se pudo crear el ${nombreTipo[tipoUsuario]}. Intentá nuevamente.`
+      );
     } finally {
       setCargando(false);
     }
@@ -69,9 +126,9 @@ function Agregarsocio() {
   return (
     <Main>
       <header className="h2">
-        <h1>Agregar socio</h1>
+        <h1>{titulos[tipoUsuario]}</h1>
 
-        <Link to="/socios" className="circuloazul2">
+        <Link to="/gestion" className="circuloazul2">
           <Icon tipo={18} tamaño={2} />
         </Link>
       </header>
@@ -81,14 +138,14 @@ function Agregarsocio() {
           <br />
 
           <div className="bloque4">
-            <form onSubmit={crearSocio} className="listay2">
+            <form onSubmit={crearUsuario} className="listay2">
               <label htmlFor="nombre">Nombre</label>
               <input
                 className="blanco"
                 id="nombre"
                 name="nombre"
                 type="text"
-                placeholder="Nombre del socio"
+                placeholder="Nombre"
                 value={formulario.nombre}
                 onChange={cambiar}
                 required
@@ -100,7 +157,7 @@ function Agregarsocio() {
                 id="apellido"
                 name="apellido"
                 type="text"
-                placeholder="Apellido del socio"
+                placeholder="Apellido"
                 value={formulario.apellido}
                 onChange={cambiar}
                 required
@@ -180,19 +237,23 @@ function Agregarsocio() {
                 required
               />
 
-              <label htmlFor="id_plan">Plan</label>
-              <select
-                className="blanco"
-                id="id_plan"
-                name="id_plan"
-                value={formulario.id_plan}
-                onChange={cambiar}
-                required
-              >
-                <option value="">Seleccionar plan</option>
-                <option value="1">Plan 1</option>
-                <option value="2">Plan 2</option>
-              </select>
+              {tipoUsuario === "socio" && (
+                <>
+                  <label htmlFor="id_plan">Plan</label>
+                  <select
+                    className="blanco"
+                    id="id_plan"
+                    name="id_plan"
+                    value={formulario.id_plan}
+                    onChange={cambiar}
+                    required
+                  >
+                    <option value="">Seleccionar plan</option>
+                    <option value="1">Plan 1</option>
+                    <option value="2">Plan 2</option>
+                  </select>
+                </>
+              )}
 
               {error && <p className="rojo">{error}</p>}
 
@@ -201,10 +262,12 @@ function Agregarsocio() {
                 type="submit"
                 disabled={cargando}
               >
-                {cargando ? "Creando socio..." : "Crear socio"}
+                {cargando
+                  ? `Creando ${nombreTipo[tipoUsuario]}...`
+                  : `Crear ${nombreTipo[tipoUsuario]}`}
               </button>
 
-              <Link to="/socios" className="rojo">
+              <Link to="/gestion" className="rojo">
                 Cancelar
               </Link>
             </form>

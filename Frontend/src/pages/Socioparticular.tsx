@@ -1,14 +1,14 @@
 import NavBar from "../components/Navbar";
 import Main from "../components/Main";
 import Header from "../components/Header";
-import type { SocioData } from "../database/Api";
+import type { SocioData} from "../database/Api";
 
 type Props = {
   socio: SocioData;
-  onCambiarEstado?: (socio: SocioData) => void;
+  // onCambiarEstado?: (socio: SocioData) => void;
 };
 
-function Socioparticular({ socio, onCambiarEstado }: Props) {
+function Socioparticular({ socio }: Props) {
   const fechaPartes = (socio.fecha_alta ?? "").split("-");
   const año = fechaPartes[0] || "-";
   const mes = fechaPartes[1] || "";
@@ -92,26 +92,28 @@ function Socioparticular({ socio, onCambiarEstado }: Props) {
               )}
             </div>
 
-            <br />
+         <br />
 
-            {onCambiarEstado && (
-              <button
-                type="button"
-                className="rojo"
-                style={{
-                  width: "100%",
-                  height: "5vh",
-                  borderRadius: "3vh",
-                  backgroundColor: "var(--rojo)",
-                  color: "var(--siempreblanco)",
-                }}
-                onClick={() => onCambiarEstado(socio)}
-              >
-                {socio.estado === "inactivo"
-                  ? "Reactivar socio"
-                  : "Dar de baja socio"}
-              </button>
-            )}
+{/*
+{onCambiarEstado && (
+  <button
+    type="button"
+    className="rojo"
+    style={{
+      width: "100%",
+      height: "5vh",
+      borderRadius: "3vh",
+      backgroundColor: "var(--rojo)",
+      color: "var(--siempreblanco)",
+    }}
+    onClick={() => onCambiarEstado(socio)}
+  >
+    {socio.estado === "inactivo"
+      ? "Reactivar socio"
+      : "Dar de baja socio"}
+  </button>
+)}
+*/}
           </div>
         </div>
       </section>

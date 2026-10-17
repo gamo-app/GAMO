@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+/*import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import NavBar from "../components/Navbar";
 import Header from "../components/Header";
@@ -240,7 +240,7 @@ function Socios() {
               ))
             )}
 
-            {/* Controles de paginación */}
+        
             {!cargando && paginacion.totalSocios > 0 && (
               <div className="bloque4" style={{ marginTop: "1vh" }}>
                 <p>
@@ -296,3 +296,4 @@ function Socios() {
 }
 
 export default Socios;
+*/

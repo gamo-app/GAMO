@@ -9,7 +9,7 @@ import Escanear from './pages/Escanear'
 import Sign from './pages/Sign'
 import Error from './pages/404'
 import Gestion from './pages/Gestion'
-import Socios from './pages/Socios'
+//import Socios from './pages/Socios'
 import Agregarsocio from './pages/Agregarsocio'
 // @ts-expect-error El módulo JSX no tiene declaración de tipos
 import Admin from './pages/admin.jsx'
@@ -30,11 +30,10 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/home" element={<Home />} />
         <Route path="/horarios" element={<Home />} />
         <Route path="/buscar" element={<Home />} />
-        <Route path="/socios" element={<Socios />} />
-        <Route path="/socios/:id" element={<Socios />} />
-        <Route path="/gestion" element={<Socios />} />
-
-        <Route path="/gestion/:id" element={<Socios />} />
+    {/*    <Route path="/socios" element={<Socios />} />
+        <Route path="/socios/:id" element={<Socios />} />*/}
+        <Route path="/gestion" element={<Gestion />} />
+        <Route path="/gestion/:id" element={<Gestion />} />
         <Route path="/agregar/:tipo" element={<Agregarsocio />} />
         <Route path="/usuario" element={<User />} />
         <Route path="/escanear" element={<Escanear />} />

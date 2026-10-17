@@ -105,6 +105,7 @@ section.login{
   border-radius: 2vh 2vh 0vh 0vh;
 }
 section.centro{
+  padding: 4vh;
   justify-content: center;
   align-items: center;
   flex-direction: column;
@@ -289,6 +290,15 @@ position:relative;
   width: 100%;
 position:relative;
   flex-wrap: wrap;
+}
+.listay3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(40vh, 1fr));
+  justify-content: center;
+  gap: 1.5vh;
+  width: 100%;
+  position: relative;
+  align-items: start;
 }
 details.azul{
   display:flex;

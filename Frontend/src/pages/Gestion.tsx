@@ -3,6 +3,8 @@ import Header from "../components/Header";
 import Socio from "../components/Socio";
 import Main from "../components/Main";
 import Icon from "../components/Icon"
+import Error from "../pages/404"
+import { LIMITE_REGISTROS } from "../database/Config";
 import Socioparticular from "./Socioparticular";
 import {
   getSocios,
@@ -41,15 +43,20 @@ const rutasAgregar: Record<Tipo, { ruta: string; texto: string }> = {
 function Socios() {
   const { id } = useParams();
 
+const [limite, setLimite] = useState(LIMITE_REGISTROS);
   const [respuesta, setRespuesta] = useState<SocioData[]>([]);
   const [cargando, setCargando] = useState(true);
-const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
+
   // Filtros
   const [busqueda, setBusqueda] = useState("");
   const [sede, setSede] = useState("");
   const [estado, setEstado] = useState("");
   const [tipo, setTipo] = useState<Tipo>("socios");
 
+useEffect(() => {
+  setLimite(LIMITE_REGISTROS);
+}, [busqueda, sede, estado, tipo]);
   useEffect(() => {
     let cancelado = false;
 
@@ -126,7 +133,7 @@ const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
     return coincideBusqueda && coincideSede && coincideEstado;
   });
-
+const sociosVisibles = sociosFiltrados.slice(0, limite);
   if (id && tipo === "socios") {
     if (cargando) {
       return <Main>Cargando socio...</Main>;
@@ -137,7 +144,7 @@ const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
     );
 
     if (!socio) {
-      return <Main>Socio no encontrado</Main>;
+      return <Error></Error>;
     }
 
     return <Socioparticular socio={socio} />;
@@ -242,7 +249,7 @@ const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
           </details>
 
           <div className="bloque estirado">
-            <div className="listay">
+          <div className={respuesta.length === 0 || sociosFiltrados.length === 0 ? "listay" : "listay3"}>
               <Link
                 to={`/agregar/${rutasAgregar[tipo].ruta}`}
                 className="rectangulo"
@@ -281,18 +288,39 @@ const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
                 <p>No hay registros disponibles.</p>
 </>
               ) : sociosFiltrados.length === 0 ? (
-                <p>No se encontraron registros con esos filtros.</p>
+                <div className="listay">
+                   <br />
+                <br />
+                <br />
+                  <Icon tipo={12} tamaño={10}></Icon>
+
+ <p>No se encontraron registros con esos filtros.</p>
+                </div>
+               
               ) : (
-                sociosFiltrados.map((socio) => (
-                  <Socio
-                    key={socio.id_socio}
-                    socio={socio}
-                    carga={false}
-                  />
-                ))
+                <>
+  {sociosVisibles.map((socio) => (
+    <Socio
+      key={socio.id_socio}
+      socio={socio}
+      carga={false}
+    />
+  ))}
+
+ 
+</>
               )}
             </div>
           </div>
+           {limite < sociosFiltrados.length && (
+    <button
+      type="button"
+      className="azul"
+      onClick={() => setLimite((anterior) => anterior + LIMITE_REGISTROS)}
+    >
+      Mostrar más
+    </button>
+  )}
         </div>
       </section>
 

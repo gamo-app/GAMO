@@ -1,0 +1,1 @@
+export const LIMITE_REGISTROS = 20;
