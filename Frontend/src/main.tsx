@@ -13,6 +13,7 @@ import './responsive.css'
 import Escanear from './pages/Escanear'
 import Sign from './pages/Sign'
 import Error from './pages/404'
+import Gestion from './pages/Gestion'
 import Socios from './pages/Socios'
 import Agregarsocio from './pages/Agregarsocio'
 
@@ -28,7 +29,10 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/buscar" element={<Home />} />
         <Route path="/socios" element={<Socios />} />
         <Route path="/socios/:id" element={<Socios />} />
-        <Route path="/agregarsocio" element={<Agregarsocio />} />
+        <Route path="/gestion" element={<Socios />} />
+
+        <Route path="/gestion/:id" element={<Socios />} />
+        <Route path="/agregar/:tipo" element={<Agregarsocio />} />
         <Route path="/usuario" element={<User />} />
         <Route path="/escanear" element={<Escanear />} />
       </Routes>

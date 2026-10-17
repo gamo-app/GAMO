@@ -43,20 +43,20 @@ export async function getSocios<T>() {
 export async function getProfesores<T>() {
   return storage.obtenerDatos<T>(
     "listaSocios",
-    () => get<T>("/socio")
+    () => get<T>("/profesor")
   );
 }
 export async function getAdmins<T>() {
   return storage.obtenerDatos<T>(
     "listaSocios",
-    () => get<T>("/socio")
+    () => get<T>("/admin")
   );
 }
 
 export async function getRepresentantes<T>() {
   return storage.obtenerDatos<T>(
     "listaSocios",
-    () => get<T>("/socio")
+    () => get<T>("/representante")
   );
 }
 
@@ -111,3 +111,28 @@ export async function setSocio<T>(
     body: JSON.stringify(socio),
   });
 }
+export async function setRepresentante<T>(
+  socio: SocioData
+): Promise<T> {
+  return api<T>("/representate", {
+    method: "POST",
+    body: JSON.stringify(socio),
+  });
+}
+export async function setProfesor<T>(
+  socio: SocioData
+): Promise<T> {
+  return api<T>("/profesor", {
+    method: "POST",
+    body: JSON.stringify(socio),
+  });
+}
+export async function setAdmin<T>(
+  socio: SocioData
+): Promise<T> {
+  return api<T>("/admin", {
+    method: "POST",
+    body: JSON.stringify(socio),
+  });
+}
+

@@ -3,7 +3,7 @@ import NavBar from "../components/Navbar";
 import Icon from "../components/Icon";
 import Main from "../components/Main";
 import { Link, useNavigate } from "react-router-dom";
-import { setSocio } from "../database/Api";
+import { setSocio, setRepresentante, setProfesor, setAdmin } from "../database/Api";
 import { useState } from "react";
 
 function Agregarsocio() {
