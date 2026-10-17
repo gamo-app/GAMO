@@ -11,4 +11,8 @@ def get_supabase_config(env):
             detail="Faltan SUPABASE_URL o SUPABASE_KEY en la configuración del Worker.",
         )
 
-    return url.rstrip("/"), key
+    url = url.strip().rstrip("/")
+    if url.endswith("/rest/v1"):
+        url = url[: -len("/rest/v1")]
+
+    return url, key.strip()
