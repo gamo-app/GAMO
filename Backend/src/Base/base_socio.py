@@ -111,7 +111,6 @@ def _obtener_plan(membresias: Any) -> Optional[str]:
     if not membresias:
         return None
     lista = membresias if isinstance(membresias, list) else [membresias]
-    # En la base de datos el enum estado_membresia utiliza 'activa'
     activa = next(
         (m for m in lista if m.get("estado") in ("activa", "activo")),
         lista[0],
@@ -119,6 +118,22 @@ def _obtener_plan(membresias: Any) -> Optional[str]:
     plan_data = _primero(activa.get("plan_membresia"))
     return plan_data.get("nombre")
 
+def _obtener_estado_socio(usuario_data: Dict[str, Any], membresias: Any) -> str:
+    # 1. Si tiene usuario vinculado en public.usuario, usamos ese estado
+    estado_usr = usuario_data.get("estado")
+    if estado_usr:
+        return str(estado_usr)
+
+    # 2. Si no tiene fila en usuario, inferimos a partir de su membresía
+    if membresias:
+        lista = membresias if isinstance(membresias, list) else [membresias]
+        tiene_activa = any(
+            m.get("estado") in ("activa", "activo") for m in lista
+        )
+        return "activo" if tiene_activa else "inactivo"
+
+    # 3. Por defecto, si existe el registro en la tabla socio, figura activo
+    return "activo"
 
 def _texto(valor: Any) -> Optional[str]:
     return None if valor is None else str(valor)
@@ -128,6 +143,7 @@ def _armar_socio(persona: Dict[str, Any]) -> Dict[str, Any]:
     socio_data = _primero(persona.get("socio"))
     usuario_data = _primero(persona.get("usuario"))
     sede_data = _primero(socio_data.get("sede"))
+    membresias = socio_data.get("membresia")
     cuota = _ultima_cuota(socio_data.get("cuota")) or {}
 
     return {
@@ -141,14 +157,13 @@ def _armar_socio(persona: Dict[str, Any]) -> Dict[str, Any]:
         "dni": _texto(persona.get("dni")),
         "telefono": _texto(persona.get("telefono")),
         "email": usuario_data.get("email"),
-        "estado": usuario_data.get("estado"),
-        "plan": _obtener_plan(socio_data.get("membresia")),
+        "estado": _obtener_estado_socio(usuario_data, membresias),
+        "plan": _obtener_plan(membresias),
         "fecha_alta": socio_data.get("fecha_alta"),
         "fecha_vencimiento": cuota.get("fecha_vencimiento"),
         "estado_cuota": cuota.get("estado") or "sin_cuota",
         "monto_cuota": cuota.get("monto"),
     }
-
 
 def _extraer_total(content_range: Optional[str]) -> int:
     if not content_range or "/" not in content_range:
