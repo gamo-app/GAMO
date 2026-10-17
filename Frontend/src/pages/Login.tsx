@@ -17,23 +17,20 @@ function Login() {
   const [mostrarPresentacion, setMostrarPresentacion] = useState(
    true
   );
-  const [desapareciendo, setDesapareciendo] = useState(false);
-
+ 
   useEffect(() => {
     if (!mostrarPresentacion) return;
 
     storage.set("presentacionVista", true);
 
-    const timer = window.setTimeout(() => {
-      setDesapareciendo(true);
-    }, 2000);
+   
 
     const timerEliminar = window.setTimeout(() => {
       setMostrarPresentacion(false);
     }, 2500);
 
     return () => {
-      window.clearTimeout(timer);
+   
       window.clearTimeout(timerEliminar);
     };
   }, [mostrarPresentacion]);
