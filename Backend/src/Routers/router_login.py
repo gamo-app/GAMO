@@ -46,8 +46,8 @@ def establecer_cookies(
         value=access_token,
         max_age=access_max_age,
         httponly=True,
-        secure=True,
-        samesite="none",
+        secure=False,
+        samesite="lax",
         path="/",
     )
 
@@ -56,8 +56,8 @@ def establecer_cookies(
         value=refresh_token,
         max_age=REFRESH_MAX_AGE,
         httponly=True,
-        secure=True,
-        samesite="none",
+        secure=False,
+        samesite="lax",
         path="/",
     )
 
@@ -270,6 +270,7 @@ async def login(
 # CONSULTAR Y RENOVAR SESIÓN
 # ------------------------------------------
 
+
 async def obtener_sesion(env, request: Request):
     url, key = get_supabase_config(env)
 
@@ -282,13 +283,13 @@ async def obtener_sesion(env, request: Request):
             detail="No hay una sesión activa.",
         )
 
+    # Comprobar si el access token sigue vigente.
     usuario_auth = await obtener_usuario_auth(
         url,
         key,
         access_token,
     )
 
-    # Si el token todavía es válido.
     if usuario_auth:
         usuario_gamo = await obtener_usuario_gamo(
             env,
@@ -303,11 +304,11 @@ async def obtener_sesion(env, request: Request):
             )
 
         return {
-            "mensaje": "Inicio de sesión correcto.",
+            "autenticado": True,
             "usuario": usuario_gamo,
         }
 
-    # Si expiró, intentar renovar la sesión.
+    # El token expiró: intentar renovarlo.
     if not refresh_token:
         raise HTTPException(
             status_code=401,
@@ -353,10 +354,10 @@ async def obtener_sesion(env, request: Request):
             detail="El usuario no tiene acceso a GAMO.",
         )
 
-    # Crear respuesta con las cookies renovadas.
+    # Crear una respuesta con la sesión y las cookies renovadas.
     response = Response(
         content=json.dumps({
-            "mensaje": "Inicio de sesión correcto.",
+            "autenticado": True,
             "usuario": usuario_gamo,
         }),
         media_type="application/json",
@@ -402,7 +403,6 @@ async def logout(env, request: Request, response: Response):
 # ------------------------------------------
 # RUTAS FASTAPI
 # ------------------------------------------
-
 @router.post("")
 async def iniciar_sesion(
     request: Request,
@@ -410,23 +410,13 @@ async def iniciar_sesion(
     response: Response,
 ):
     env = request.scope["env"]
-
-    return await login(
-        env,
-        datos,
-        request,
-        response,
-    )
+    return await login(env, datos, request, response)
 
 
 @router.get("/auth/me")
 async def consultar_sesion(request: Request):
     env = request.scope["env"]
-
-    return await obtener_sesion(
-        env,
-        request,
-    )
+    return await obtener_sesion(env, request)
 
 
 @router.post("/logout")
@@ -435,9 +425,4 @@ async def cerrar_sesion(
     response: Response,
 ):
     env = request.scope["env"]
-
-    return await logout(
-        env,
-        request,
-        response,
-    )
+    return await logout(env, request, response)

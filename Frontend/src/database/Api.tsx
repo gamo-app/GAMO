@@ -1,13 +1,11 @@
 
 import { storage } from "./Storage";
 
-// const API_URL = import.meta.env.VITE_API_URL;
-
 export async function api<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
-  const response = await fetch(endpoint, { 
+  const response = await fetch(endpoint, {
     ...options,
     credentials: "include",
     headers: {
@@ -15,7 +13,6 @@ export async function api<T>(
       ...options?.headers,
     },
   });
-
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -25,6 +22,7 @@ export async function api<T>(
       const parsed = JSON.parse(errorText);
       message = parsed.detail || parsed.mensaje || errorText;
     } catch {
+      // La respuesta no contiene JSON.
     }
 
     console.error("Error del backend:", {
@@ -55,38 +53,61 @@ export async function getSocios<T>() {
   );
 }
 
-// Autenticación.
-type UsuarioSesion = {
+// Usuario autenticado.
+export type UsuarioSesion = {
   id: string;
+  id_persona?: number;
+  id_sede?: number;
+  id_grupo?: number;
   email: string;
+  nombre_usuario?: string;
+  estado?: string;
+  rol?: string;
+  nivel?: number;
+  permisos?: Record<string, unknown>;
+  persona?: {
+    id_persona?: number;
+    dni?: string;
+    nombre?: string;
+    apellido?: string;
+    telefono?: string;
+    fecha_nacimiento?: string;
+  };
+  sede?: {
+    id_sede?: number;
+    nombre?: string;
+  };
 };
 
-type LoginResponse = {
+export type LoginResponse = {
   mensaje: string;
   usuario: UsuarioSesion;
 };
 
-type SesionResponse = {
+export type SesionResponse = {
   autenticado: boolean;
   usuario: UsuarioSesion;
 };
 
+// Iniciar sesión.
 export async function iniciarSesion(
   email: string,
   password: string
 ): Promise<LoginResponse> {
-  return api<LoginResponse>("/login/login", {
+  return api<LoginResponse>("/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
 }
 
+// Verificar la sesión actual.
 export async function obtenerSesion(): Promise<SesionResponse> {
-  return api<SesionResponse>("/login/me", {
+  return api<SesionResponse>("/login/auth/me", {
     method: "GET",
   });
 }
 
+// Cerrar sesión.
 export async function cerrarSesion(): Promise<void> {
   await api<{ mensaje: string }>("/login/logout", {
     method: "POST",
@@ -118,7 +139,3 @@ export async function setSocio<T>(
     body: JSON.stringify(socio),
   });
 }
-
-
-
-

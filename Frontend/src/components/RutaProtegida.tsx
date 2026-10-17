@@ -1,10 +1,17 @@
 
 import { useEffect, useState } from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import {
+  Navigate,
+  Outlet,
+  useLocation,
+} from "react-router-dom";
 import { obtenerSesion } from "../database/Api";
 
 export default function RutaProtegida() {
-  const [autenticado, setAutenticado] = useState<boolean | null>(null);
+  const [autenticado, setAutenticado] = useState<boolean | null>(
+    null
+  );
+
   const location = useLocation();
 
   useEffect(() => {
@@ -17,14 +24,16 @@ export default function RutaProtegida() {
         if (activo) {
           setAutenticado(sesion.autenticado === true);
         }
-      } catch {
+      } catch (error) {
+        console.error("No se pudo verificar la sesión:", error);
+
         if (activo) {
           setAutenticado(false);
         }
       }
     }
 
-    verificarSesion();
+    void verificarSesion();
 
     return () => {
       activo = false;
