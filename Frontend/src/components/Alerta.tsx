@@ -16,7 +16,8 @@ export function confirmar(mensaje: string, accion: () => void) {
     return (
       <div className="alerta-fondo">
         <div className="alerta">
-            <Icon tipo={23} tamaño={10}/>
+           <img src="pregunta.svg" className="logoanimado" alt="" />
+
           <h3 className="centro">¿Estás seguro?</h3>
           <p className="centro">{mensaje}</p>
 
