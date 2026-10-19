@@ -29,7 +29,7 @@ function Sign() {
 
   return (
     <Main>
-      <Header />
+      <Header login />
 
       <section className="login">
         <form className="listabloques">

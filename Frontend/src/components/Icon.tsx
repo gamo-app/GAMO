@@ -19,6 +19,9 @@ import Telefono from "../assets/svg/telefono.svg?raw";
 import Atras from "../assets/svg/atras.svg?raw";
 import Notificacion from "../assets/svg/notificaciones.svg?raw";
 import Eliminar from "../assets/svg/eliminar.svg?raw";
+import Feliz from "../assets/svg/feliz.svg?raw";
+import Bienvenido from "../assets/svg/bienvenido.svg?raw";
+import Pregunta from "../assets/svg/pregunta.svg?raw";
 
 interface IconProps {
   tipo?: number;
@@ -54,6 +57,9 @@ function Icon({
     Atras,        //18
     Notificacion ,//19
     Eliminar,     //20
+    Feliz,        //21
+    Bienvenido,   //22
+    Pregunta,   //23
   ];
 
   const colores = [

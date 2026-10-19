@@ -104,8 +104,21 @@ section.login{
   padding-top: 5vh;
   border-radius: 2vh 2vh 0vh 0vh;
 }
+h4.centro,
+h1.centro,
+h2.centro,
+h3.centro,
+p.centro{
+  text-align: center;
+}
 section.centro{
   padding: 4vh;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+section.centro2{
+  padding: 1vh;
   justify-content: center;
   align-items: center;
   flex-direction: column;
@@ -143,8 +156,20 @@ background-color: var(--blanco);
 header h1{
   color: var(--siempreblanco);
 }
-
-
+.comentariogamo{
+ display: flex;
+ flex-direction: row;
+ gap: 1vh;
+ margin-bottom: 5vh;
+}
+.comentariogamo h4{
+  background-color: var(--siempreblanco);
+  padding: 1.2vh;
+  border-radius: 2vh;
+  max-width: 20vh;
+text-align: center;  
+max-height: max-content;
+}
 footer{
    display:flex;
   flex-direction: row;
@@ -796,7 +821,7 @@ a.circuloazul2{
 a.circuloazul2 img.icon{
   margin-bottom: 0.2vh;
 }
-a.rojo{
+a.rojo, button.rojo{
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1011,3 +1036,54 @@ max-width: 22vh;
 .codigo strong {
   font-size: 3vh;
 }
+
+.confetti-cielo {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.confetti-particula {
+  position: absolute;
+  top: -2vh;
+  border-radius: 0.2vh;
+  opacity: 0;
+  animation-name: confetti-caida;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/*ALERTAS*/
+
+
+.alerta-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3vh 4vw;
+  background: #0008;
+  backdrop-filter: blur(0.4vh);
+}
+
+.alerta {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 40vh;
+  background: var(--blanco);
+  padding: 2vh;
+  border-radius: 1.5vh;
+  gap: 2vh;
+}
+.alerta *{
+  width: 100%;
+}
+
+

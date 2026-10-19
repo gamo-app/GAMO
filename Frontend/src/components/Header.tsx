@@ -1,19 +1,13 @@
 
 import Icon from "./Icon";
-import { useLocation, useNavigate, Link } from "react-router-dom";
+import {  useNavigate, Link } from "react-router-dom";
 
-function Header({ atras = false }) {
-  const location = useLocation();
+function Header({ atras = false, login= false }) {
   const navigate = useNavigate();
 
-
-  const esLogin =
-    location.pathname === "/" ||
-    location.pathname === "/crear";
-
   return (
-    <header className={esLogin ? "login" : ""}>
-      {esLogin ? (
+    <header className={login ? "login" : ""}>
+      {login ? (
         <>
           <Icon tipo={10} tamaño={23} />
           <p style={{ marginTop: "0.5vh" }}>

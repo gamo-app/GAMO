@@ -16,7 +16,7 @@ import Agregarsocio from './pages/Agregarsocio'
 import Admin from './pages/admin.jsx'
 // @ts-expect-error El módulo JSX no tiene declaración de tipos
 import Recepcion from './pages/recepcion.jsx'
-
+import Camcontra from "./pages/Camcontra.js"
 import './animations.css'
 import './index.css'
 import './responsive.css'
@@ -29,6 +29,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/*" element={<Error />} />
         <Route path="/crear" element={<Sign />} />
         <Route path="/home" element={<Home />} />
+        <Route path="/contraseña" element={<Camcontra />} />
         <Route path="/horarios" element={<Home />} />
         <Route path="/buscar" element={<Home />} />
     {/*    <Route path="/socios" element={<Socios />} />

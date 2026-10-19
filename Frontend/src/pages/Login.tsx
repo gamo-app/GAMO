@@ -47,7 +47,7 @@ function Login() {
       });
 
       console.log("Inicio de sesión correcto:", respuesta);
-      navigate("/home");
+      navigate("/contraseña");
     } catch (error) {
       console.error("Error al iniciar sesión:", error);
       setError("Correo o contraseña incorrectos.");
@@ -62,7 +62,7 @@ function Login() {
          <Presentacion />
       )}
 
-      <Header />
+      <Header login />
 
       <section className="login">
         <div className="listabloques">
