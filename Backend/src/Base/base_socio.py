@@ -8,6 +8,8 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 from supabase_config import get_supabase_config
 from workers import fetch
+from Base import base_cuota as cuota
+from model import EstadoDePagoEnum, EstadoDePagoSocioEnum
 
 logger = logging.getLogger(__name__)
 
@@ -312,3 +314,15 @@ async def actualizar_estado_usuario_general(env, id_persona: int, estado: str):
         "message": "Estado actualizado correctamente",
         "data": resultado,
     }
+
+async def get_estado_pago(env, id_socio : int):
+    vencidas = await cuota.get_cuotas_of_type_by_socio(env, id_socio, EstadoDePagoEnum.vencida)
+    if len(vencidas) != 0:
+        return EstadoDePagoSocioEnum.moroso
+
+    pendientes = await cuota.get_cuotas_of_type_by_socio(env, id_socio, EstadoDePagoEnum.pendiente)
+    if len(pendientes) != 0:
+        return EstadoDePagoSocioEnum.pendiente
+    
+    
+    return EstadoDePagoSocioEnum.al_dia

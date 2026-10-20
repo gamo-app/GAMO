@@ -31,6 +31,10 @@ class EstadoDePagoEnum(str, Enum):
     pendiente = "pendiente"
     vencida = "vencida"
 
+class EstadoDePagoSocioEnum(str, Enum):
+    al_dia = "al dia"
+    pendiente = "pendiente"
+    moroso = "moroso"
 
 # Datos personales
 class PersonaCreate(BaseModel):
