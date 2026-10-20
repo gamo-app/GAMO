@@ -1,11 +1,12 @@
 import NavBar from "../components/Navbar";
 import Header from "../components/Header";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { storage } from "../database/Storage";
-
+import { confirmar } from "../components/Alerta";
 import { useState } from "react";
 
 function User() {
+  const navigate = useNavigate()
   const [modoOscuro, setModoOscuro] = useState(
     storage.get<boolean>("modoOscuro") ?? false
   );
@@ -36,9 +37,20 @@ function User() {
               <option value="true">Modo oscuro</option>
             </select>
 
-            <Link to="/" className="rojo">
+            <button  className="rojo" onClick={ (e)=>{
+               e.preventDefault();
+
+          confirmar(
+          "Vas a cerrar la sesión actual ¿Querés continuar?",
+          () => {
+            navigate("/");
+          })
+            }
+
+            }
+            >
               Cerrar sesión
-            </Link>
+            </button>
           </div>
 
          
