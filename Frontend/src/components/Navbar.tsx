@@ -8,7 +8,7 @@ function NavBar() {
       <NavLink to="/home" className="icono">
         {({ isActive }) => (
           <>
-            <Icon tipo={0} color={isActive ? 1 : 0} />
+            <Icon tipo={0} tamaño={3}  color={isActive ? 1 : 0} />
             Home
           </>
         )}
@@ -17,20 +17,20 @@ function NavBar() {
       <NavLink to="/horarios" className="icono">
         {({ isActive }) => (
           <>
-            <Icon tipo={1} color={isActive ? 1 : 0} />
+            <Icon tipo={1} tamaño={3}  color={isActive ? 1 : 0} />
             Horarios
           </>
         )}
       </NavLink>
 
       <NavLink to="/escanear" className="escanear">
-        <Icon tipo={4} color={2} tamaño={2.5} />
+        <Icon tipo={4} color={2} tamaño={3} />
       </NavLink>
 
      {rol != "socio" ? <NavLink to="/gestion" className="icono">
         {({ isActive }) => (
           <>
-            <Icon tipo={11} color={isActive ? 1 : 0} />
+            <Icon tipo={11} tamaño={3}  color={isActive ? 1 : 0} />
             Gestión
           </>
         )}
@@ -39,7 +39,7 @@ function NavBar() {
          <NavLink to="/buscar" className="icono">
         {({ isActive }) => (
           <>
-            <Icon tipo={3} color={isActive ? 1 : 0} />
+            <Icon tipo={3} tamaño={3}  color={isActive ? 1 : 0} />
             Buscar
           </>
         )}
@@ -49,7 +49,7 @@ function NavBar() {
       <NavLink to="/usuario" className="icono">
         {({ isActive }) => (
           <>
-            <Icon tipo={2} color={isActive ? 1 : 0} />
+            <Icon tipo={2} tamaño={3} color={isActive ? 1 : 0} />
             Usuario
           </>
         )}

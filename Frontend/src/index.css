@@ -188,7 +188,7 @@ footer{
     font-size: 0vh;
 
   padding-right: 10%;
-  min-height:7vh;
+  min-height:8vh;
   grid-area:FOO;
   background-color: var(--blanco);
 }
@@ -894,8 +894,8 @@ a.escanear{
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 5vh;
-  height: 5vh;
+  width: 6vh;
+  height: 6vh;
   background-color: var(--azul);
   border-radius: 4vh;
 }
