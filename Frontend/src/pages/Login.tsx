@@ -17,7 +17,11 @@ function Login() {
   const [mostrarPresentacion, setMostrarPresentacion] = useState(
    true
   );
- 
+useEffect(() => {
+  if (storage.get("jwt")) {
+    navigate("/home");
+  }
+}, [navigate]);
   useEffect(() => {
     if (!mostrarPresentacion) return;
 
