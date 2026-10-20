@@ -15,7 +15,7 @@ const navigate = useNavigate();
   return (
     <Main>
       <Header salir />
-
+  <Confetti ref={confetti} />
       <section className="centro2">
         <div className="listabloques">
 
@@ -51,7 +51,7 @@ const navigate = useNavigate();
                         placeholder="-----"
                       />
         </div>
-  <Confetti ref={confetti} />
+
 <div className="divisorx">
 <button
   className="rojo"
