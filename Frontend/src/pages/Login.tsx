@@ -18,8 +18,8 @@ function Login() {
    true
   );
 useEffect(() => {
-  if (storage.get("jwt")) {
-    navigate("/home");
+  if (storage.exist("jwt")) {
+    navigate("/home", { replace: true });
   }
 }, [navigate]);
   useEffect(() => {
