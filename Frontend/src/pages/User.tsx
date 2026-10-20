@@ -44,6 +44,7 @@ function User() {
           "Vas a cerrar la sesión actual ¿Querés continuar?",
           () => {
             navigate("/");
+            storage.clear();
           })
             }
 
