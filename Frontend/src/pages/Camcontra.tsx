@@ -14,7 +14,7 @@ const navigate = useNavigate();
   }, []);
   return (
     <Main>
-      <Header atras />
+      <Header salir />
 
       <section className="centro2">
         <div className="listabloques">

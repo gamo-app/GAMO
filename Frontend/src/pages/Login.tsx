@@ -1,9 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Main from "../components/Main";
 import { storage } from "../database/Storage";
 import { iniciarSesion } from "../database/Api";
+import { carga } from "../components/Cargando";
 import Presentacion from "./Presentacion";
 
 function Login() {
@@ -14,35 +16,35 @@ function Login() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 
-  const [mostrarPresentacion, setMostrarPresentacion] = useState(
-   true
-  );
-useEffect(() => {
-  if (storage.exist("jwt")) {
-    navigate("/home", { replace: true });
-  }
-}, [navigate]);
+  const [mostrarPresentacion, setMostrarPresentacion] = useState(true);
+
+  useEffect(() => {
+    if (storage.exist("jwt")) {
+      navigate("/home", { replace: true });
+    }
+  }, [navigate]);
+
   useEffect(() => {
     if (!mostrarPresentacion) return;
 
     storage.set("presentacionVista", true);
-
-   
 
     const timerEliminar = window.setTimeout(() => {
       setMostrarPresentacion(false);
     }, 2500);
 
     return () => {
-   
       window.clearTimeout(timerEliminar);
     };
   }, [mostrarPresentacion]);
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
     setError("");
     setCargando(true);
+
+    const cerrarCarga = carga();
 
     try {
       const respuesta = await iniciarSesion({
@@ -51,20 +53,20 @@ useEffect(() => {
       });
 
       console.log("Inicio de sesión correcto:", respuesta);
+
       navigate("/contraseña");
     } catch (error) {
       console.error("Error al iniciar sesión:", error);
       setError("Correo o contraseña incorrectos.");
     } finally {
+      cerrarCarga();
       setCargando(false);
     }
   }
 
   return (
     <Main>
-      {mostrarPresentacion && (
-         <Presentacion />
-      )}
+      {mostrarPresentacion && <Presentacion />}
 
       <Header login />
 
@@ -106,6 +108,7 @@ useEffect(() => {
             <br />
 
             <h4>¿No tiene una cuenta?</h4>
+
             <Link to="/crear" className="blanco">
               Crear cuenta
             </Link>

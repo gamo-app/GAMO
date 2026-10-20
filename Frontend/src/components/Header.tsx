@@ -1,8 +1,9 @@
 
 import Icon from "./Icon";
 import {  useNavigate, Link } from "react-router-dom";
-
-function Header({ atras = false, login= false }) {
+import { storage } from "../database/Storage";
+import { confirmar } from "../components/Alerta";
+function Header({ atras = false, login= false,salir=false }) {
   const navigate = useNavigate();
 
   return (
@@ -25,6 +26,26 @@ function Header({ atras = false, login= false }) {
             <Icon tipo={18} tamaño={2} />
           </button>
         </>
+      ) : salir ? (
+        <>
+          <Icon tipo={10} tamaño={14} />
+
+        <button   className="circuloazul2"  onClick={ (e)=>{
+                       e.preventDefault();
+        
+                  confirmar(
+                  "Vas a cerrar la sesión actual ¿Querés continuar?",
+                  () => {
+                    navigate("/");
+                    storage.clear();
+                  })
+                    }
+        
+                    }>
+ <Icon tipo={18} tamaño={2} />
+        </button>
+        </>
+
       ) : (
         <>
           <Icon tipo={10} tamaño={14} />

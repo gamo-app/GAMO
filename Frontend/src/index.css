@@ -156,6 +156,13 @@ height: 6vh;
 border-radius: 5vh;
 background-color: var(--blanco);
 }
+img.cargando{
+  width: 10vh;
+  transform-box: view-box;
+  transform-origin: center;
+  animation: giro 1.2s both infinite;
+}
+
 header img.logo{
   width: 90%;
 max-width: 30vh;
