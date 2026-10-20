@@ -1,6 +1,5 @@
 
 import { createRoot } from "react-dom/client";
-import Icon from "./Icon";
 export function confirmar(mensaje: string, accion: () => void) {
   const contenedor = document.createElement("div");
   document.body.appendChild(contenedor);

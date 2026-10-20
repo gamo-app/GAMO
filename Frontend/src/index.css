@@ -16,8 +16,14 @@
   --verde:#14c973;
   --rojo:#f5333e;
 }
-html{
+html {
   background-color: #121c2e;
+  color-scheme: dark;
+}
+
+body {
+  background-color: #121c2e;
+  margin: 0;
 }
 * {
   box-sizing: border-box;
