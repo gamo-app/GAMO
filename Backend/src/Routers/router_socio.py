@@ -25,7 +25,7 @@ async def get_estado_pago(request: Request, id_ususario: int):
     except  HTTPException as e:
         raise HTTPException(400, detail=e.args)
 
-@router.patch("/estado-pago/{id_ususario}/{estado}")
+#@router.patch("/estado-pago/{id_ususario}/{estado}")
 
 #----------------------------------------#
 
