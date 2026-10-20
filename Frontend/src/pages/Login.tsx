@@ -20,7 +20,7 @@ function Login() {
 
   useEffect(() => {
     if (storage.exist("jwt")) {
-      navigate("/home", { replace: true });
+      navigate("/contraseña", { replace: true });
     }
   }, [navigate]);
 
