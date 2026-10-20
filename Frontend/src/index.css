@@ -878,6 +878,7 @@ button:hover,a:hover{
   cursor: pointer;
 }
 .icon{
+  overflow: visible;
   display: flex;
   justify-content: center;
   align-items: center;

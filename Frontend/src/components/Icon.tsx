@@ -17,11 +17,12 @@ import Correo from "../assets/svg/correo.svg?raw";
 import WhatsApp from "../assets/svg/whatsapp.svg?raw";
 import Telefono from "../assets/svg/telefono.svg?raw";
 import Atras from "../assets/svg/atras.svg?raw";
-import Notificacion from "../assets/svg/notificaciones.svg?raw";
+import Notificacion from "../assets/svg/campana2.svg?raw";
 import Eliminar from "../assets/svg/eliminar.svg?raw";
 import Feliz from "../assets/svg/feliz.svg?raw";
 import Bienvenido from "../assets/svg/bienvenido.svg?raw";
 import Pregunta from "../assets/svg/pregunta.svg?raw";
+import Campana from "../assets/svg/campana1.svg?raw";
 
 interface IconProps {
   tipo?: number;
@@ -59,7 +60,8 @@ function Icon({
     Eliminar,     //20
     Feliz,        //21
     Bienvenido,   //22
-    Pregunta,   //23
+    Pregunta,     //23
+    Campana,      //24
   ];
 
   const colores = [

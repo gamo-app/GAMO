@@ -29,7 +29,7 @@ function Header({ atras = false, login= false }) {
         <>
           <Icon tipo={10} tamaño={14} />
           <Link to="/noti">
-            <Icon tipo={19} tamaño={2.4} />
+            <Icon tipo={19} tamaño={3.2} />
           </Link>
         </>
       )}
