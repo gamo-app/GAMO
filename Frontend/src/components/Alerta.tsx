@@ -1,5 +1,6 @@
 
 import { createRoot } from "react-dom/client";
+import Icon from "./Icon";
 export function confirmar(mensaje: string, accion: () => void) {
   const contenedor = document.createElement("div");
   document.body.appendChild(contenedor);
@@ -14,8 +15,9 @@ export function confirmar(mensaje: string, accion: () => void) {
   function Alerta() {
     return (
       <div className="alerta-fondo">
+           <Icon tipo={23} tamaño={15} ></Icon>
+
         <div className="alerta">
-           <img src="pregunta.svg" className="logoanimado" alt="" />
 
           <h3 className="centro">¿Estás seguro?</h3>
           <p className="centro">{mensaje}</p>
