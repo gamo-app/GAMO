@@ -7,7 +7,13 @@
     background-position: -100% 0;
   }
 }
+.alerta{
+  animation: aparecer2 0.2s both;
+}
+.alerta-fondo{
+  animation: aparecer3 0.2s both;
 
+}
 @keyframes aparecer {
   from {
     transform: translateX(-1vh);
@@ -20,7 +26,28 @@
 
   }
 }
+@keyframes aparecer3 {
+  from {
+    opacity: 0%;
+  }
 
+  to {
+    opacity: 100%;
+
+  }
+}
+@keyframes aparecer2 {
+  from {
+    transform: scale(0);
+    opacity: 0%;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 100%;
+
+  }
+}
 .proceso {
   animation: proceso 1s  steps(1) infinite;
 }
