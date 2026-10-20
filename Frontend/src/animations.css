@@ -14,7 +14,7 @@
   animation: aparecer3 0.2s both;
 
 }
-.bloque *{
+.bloque{
     animation: aparecer4 0.5s both  ;
 }
 @keyframes aparecer4 {
