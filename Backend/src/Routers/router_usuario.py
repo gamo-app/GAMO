@@ -24,7 +24,6 @@ async def post_usuario(
 
 @router.get("/me/{id_usuario}")
 async def get_mi_sesion(request: Request, id_usuario: str):
-
     return await usuario.get_sesion(
         request.scope["env"],
         id_usuario

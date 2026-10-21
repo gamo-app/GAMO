@@ -6,8 +6,11 @@ from typing import Any, Dict, List, Literal, Optional
 from urllib.parse import quote
 from fastapi import HTTPException
 from pydantic import BaseModel
-from supabase_config import get_supabase_config
+from supabase_config import get_supabase_config, get_supabase
 from workers import fetch
+from Base import base_cuota as cuota
+from model import EstadoDePagoEnum, EstadoDePagoSocioEnum
+from postgrest import APIError
 
 logger = logging.getLogger(__name__)
 
@@ -240,19 +243,13 @@ async def obtener_socios_paginados(
 
 
 async def get_all_socios(env):
-    url, key = get_supabase_config(env)
-    response = await fetch(
-        f"{url}/rest/v1/socio?select=*",
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-        },
-    )
+    supabase = get_supabase(env)
+    try:
+        response = supabase.table("socio").select("*").execute()
+    except APIError as e:
+        return f"Error al cargar socios: {e.message}"
 
-    if not response.ok:
-        raise await _error_upstream(response, "Error al consultar los socios")
-
-    return await response.json()
+    return response
 
 
 async def socio_all_estado(env, rol: str, estado: str):
@@ -312,3 +309,24 @@ async def actualizar_estado_usuario_general(env, id_persona: int, estado: str):
         "message": "Estado actualizado correctamente",
         "data": resultado,
     }
+
+async def get_estado_pago(env, id_socio : int):
+    vencidas = await cuota.get_cuotas_of_type_by_socio(env, id_socio, EstadoDePagoEnum.vencida)
+    if len(vencidas) != 0:
+        return EstadoDePagoSocioEnum.moroso
+
+    pendientes = await cuota.get_cuotas_of_type_by_socio(env, id_socio, EstadoDePagoEnum.pendiente)
+    if len(pendientes) != 0:
+        return EstadoDePagoSocioEnum.pendiente
+    
+    
+    return EstadoDePagoSocioEnum.al_dia
+
+async def socio_exists(env, id_socio : int):
+    supabase = get_supabase(env)
+    try:
+        response = supabase.table("socio").select("*").eq("id_socio", id_socio).execute()
+    except APIError as e:
+          return f'<p>Error ar cargar clases: {e.message}</p>'
+    
+    return len(response.data) != 0
