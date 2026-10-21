@@ -1,20 +1,10 @@
-from fastapi import HTTPException
-from supabase_config import get_supabase_config
-from workers import fetch
-
+from supabase_config import get_supabase
+from postgrest import APIError
 async def get_all_sedes(env):
-    url, key = get_supabase_config(env)
-    response = await fetch(
-        f"{url}/rest/v1/sede?select=*",
-            headers={
-                "apikey": key,
-                "Authorization": f"Bearer {key}",
-            },
-        )
- 
-    if not response.ok:
-                raise HTTPException(
-                    status_code=response.status,
-                    detail=await response.text(),
-                )    
-    return await response.json()    
+    supabase = get_supabase(env)
+    try:
+        response = supabase.table("sede").select("*").execute()
+    except APIError as e:
+        return f"Error al cargar sedes: {e.message}"
+
+    return response

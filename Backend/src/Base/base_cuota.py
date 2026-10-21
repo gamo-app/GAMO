@@ -2,9 +2,6 @@ from supabase_config import get_supabase
 from postgrest import APIError
 from model import EstadoDePagoEnum
 
-from supabase_config import get_supabase_config
-from workers import fetch
-from fastapi import HTTPException
 async def get_all_cuotas(env):
     supabase = get_supabase(env)
     try:

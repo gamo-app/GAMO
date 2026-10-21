@@ -2,24 +2,17 @@ from urllib.parse import quote
 from fastapi import HTTPException
 from supabase_config import get_supabase_config
 from workers import fetch
-
+from supabase_config import get_supabase
+from postgrest import APIError
 
 async def get_all_representantes(env):
-    url, key = get_supabase_config(env)
-    response = await fetch(
-        f"{url}/rest/v1/representante?select=*",
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-        },
-    )
+    supabase = get_supabase(env)
+    try:
+        response = supabase.table("representante").select("*").execute()
+    except APIError as e:
+            return f'<p>Error ar cargar representantes: {e.message}</p>'
 
-    if not response.ok:
-        raise HTTPException(
-            status_code=response.status,
-            detail=await response.text(),
-        )
-    return await response.json()
+    return response.data   
 
 
 async def buscar_representantes(
