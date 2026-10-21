@@ -12,6 +12,7 @@ from supabase_config import get_supabase_config
 # =========================================================
 
 class UsuarioFiltradoResponse(BaseModel):
+    # Datos generales (usuario + persona + grupo_usuario + sede)
     id_usuario: str
     id_persona: int
     nombre: str
@@ -107,6 +108,7 @@ def _terminos_de_busqueda(buscar: Optional[str]) -> List[str]:
 
 
 def _aplicar_or_tabla(query, condiciones: str, tabla: str):
+    """Aplica .or_() sobre una tabla relacionada soportando cualquier versión de postgrest-py."""
     try:
         return query.or_(condiciones, reference_table=tabla)
     except TypeError:
@@ -148,6 +150,7 @@ def _armar_usuario_filtrado(fila: Dict[str, Any]) -> Dict[str, Any]:
     profesor = _primero(persona.get("profesor"))
     representante = _primero(persona.get("representante"))
 
+    # Resolver sede priorizando usuario.sede y usando la sede del rol como respaldo
     sede_rol = (
         _primero(socio.get("sede"))
         or _primero(profesor.get("sede"))
@@ -156,6 +159,7 @@ def _armar_usuario_filtrado(fila: Dict[str, Any]) -> Dict[str, Any]:
     id_sede_final = fila.get("id_sede") or sede_rol.get("id_sede")
     nombre_sede_final = sede_usuario.get("nombre") or sede_rol.get("nombre")
 
+    # Datos de socio (membresía y cuota)
     membresia = _membresia_principal(socio.get("membresia"))
     plan = _primero(membresia.get("plan_membresia"))
 
@@ -164,6 +168,7 @@ def _armar_usuario_filtrado(fila: Dict[str, Any]) -> Dict[str, Any]:
     estado_cuota = cuota.get("estado") or ("sin_cuota" if socio else None)
     tiene_cuota_vencida = any(c.get("estado") == "vencida" for c in cuotas_socio)
 
+    # Datos de representante (deporte)
     deporte = _primero(representante.get("deporte"))
 
     return {
@@ -180,6 +185,7 @@ def _armar_usuario_filtrado(fila: Dict[str, Any]) -> Dict[str, Any]:
         "estado": fila.get("estado") or "activo",
         "id_sede": id_sede_final,
         "sede": nombre_sede_final,
+        # Socio
         "id_socio": socio.get("id_socio"),
         "codigo_credencial": str(socio["codigo_credencial"]) if socio.get("codigo_credencial") else None,
         "fecha_alta": str(socio["fecha_alta"]) if socio.get("fecha_alta") else None,
@@ -190,7 +196,9 @@ def _armar_usuario_filtrado(fila: Dict[str, Any]) -> Dict[str, Any]:
         "estado_cuota": estado_cuota,
         "monto_cuota": float(cuota["monto"]) if cuota.get("monto") is not None else None,
         "es_moroso": tiene_cuota_vencida,
+        # Profesor
         "id_profesor": profesor.get("id_profesor"),
+        # Representante
         "id_representante": representante.get("id_representante"),
         "id_deporte": deporte.get("id_deporte"),
         "deporte": deporte.get("nombre"),
@@ -218,6 +226,7 @@ async def filtrar_usuarios_por_rol(
     rol_norm = _normalizar_rol(rol)
     estado_norm = _normalizar_estado(estado)
 
+    # Si piden "Morosos" para un rol distinto de socio, devolver lista vacía
     if estado_norm == "moroso" and rol_norm in ("profesor", "representante", "administrador"):
         return {
             "datos": [],
@@ -229,6 +238,7 @@ async def filtrar_usuarios_por_rol(
             },
         }
 
+    # Activar !inner dinámicamente cuando se filtra por tablas anidadas
     join_socio = "socio!inner" if (estado_norm == "moroso" or id_plan) else "socio"
     join_membresia = "membresia!inner" if id_plan else "membresia"
     join_cuota = "cuota!inner" if estado_norm == "moroso" else "cuota"
@@ -260,24 +270,30 @@ async def filtrar_usuarios_por_rol(
 
         query = supabase.table("usuario").select(select_query, count="exact")
 
+        
         if rol_norm:
             query = query.ilike("grupo_usuario.nombre", f"{rol_norm}%")
 
+        # 2. Filtro por Estado (activo, inactivo o moroso)
         if estado_norm in ("activo", "inactivo"):
             query = query.eq("estado", estado_norm)
         elif estado_norm == "moroso":
             query = query.ilike("grupo_usuario.nombre", "socio%")
             query = query.eq("persona.socio.cuota.estado", "vencida")
 
+        
         if id_sede is not None and id_sede > 0:
             query = query.eq("id_sede", id_sede)
 
+       
         if id_plan is not None and id_plan > 0:
             query = query.eq("persona.socio.membresia.id_plan", id_plan)
-
+            query = query.eq("persona.socio.membresia.estado", "activa")
+        
         if id_deporte is not None and id_deporte > 0:
             query = query.eq("persona.representante.id_deporte", id_deporte)
 
+        # 5. Buscador por nombre, apellido, DNI, teléfono o email
         for termino in _terminos_de_busqueda(buscar):
             if "@" in termino:
                 query = query.ilike("email", f"%{termino}%")
@@ -293,6 +309,7 @@ async def filtrar_usuarios_por_rol(
 
                 query = _aplicar_or_tabla(query, ",".join(condiciones), "persona")
 
+        # 6. Ordenamiento y Paginación
         response = (
             await query
             .order("id_persona", desc=False)
