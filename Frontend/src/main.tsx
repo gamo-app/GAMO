@@ -17,12 +17,10 @@ import Admin from './pages/admin.jsx'
 // @ts-expect-error El módulo JSX no tiene declaración de tipos
 import Recepcion from './pages/recepcion'
 import Camcontra from "./pages/Camcontra"
-import Header from "./components/Header"
-import Main from "./components/Main"
 import './animations.css'
 import './index.css'
 import './responsive.css'
-import Prueba from './pages/prueba.js'
+import Prueba from './pages/Prueba'
 import Layout from "./components/Layout";
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
