@@ -119,5 +119,5 @@ app.include_router(usuario.router,
 app.include_router(roles.router,
                    prefix='/roles',
                    tags=['Roles'],
-                   dependencies=[Depends(validar_sesion)],
+                   # dependencies=[Depends(validar_sesion)],
                    responses={404: {"Roles": "Not Found"}})

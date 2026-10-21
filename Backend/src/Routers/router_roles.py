@@ -37,7 +37,8 @@ async def get_usuarios_filtrados_por_rol(
         None,
         description="Opcional: filtrar representantes por ID de deporte",
     ),
-    access_token: str = Depends(validar_sesion),
+    # Cambiamos Depends(validar_sesion) por None para probar sin sesión:
+    access_token: Optional[str] = None,
 ):
     return await roles.filtrar_usuarios_por_rol(
         env=request.scope.get("env"),

@@ -211,7 +211,7 @@ def _armar_usuario_filtrado(fila: Dict[str, Any]) -> Dict[str, Any]:
 
 async def filtrar_usuarios_por_rol(
     env,
-    access_token: str,
+    access_token: Optional[str],
     page: int = 1,
     limit: int = 10,
     rol: Optional[str] = None,
@@ -266,7 +266,7 @@ async def filtrar_usuarios_por_rol(
 
     try:
         supabase = await create_async_client(url, key)
-        supabase.postgrest.auth(access_token)
+        #supabase.postgrest.auth(access_token)
 
         query = supabase.table("usuario").select(select_query, count="exact")
 
