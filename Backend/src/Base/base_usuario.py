@@ -52,7 +52,7 @@ async def generate_jwt(env, user_id: str):
 async def get_user_from_email(env, email : str):
     supabase = get_supabase(env)
     try:
-        response = supabase.table("usuario").select("*").eq("email", email.strip).limit(1).execute()
+        response = supabase.table("usuario").select("*").eq("email", email.strip()).limit(1).execute()
     except APIError as e:
         return f"Error al buscar usuario por mail: {e.message}"
 
