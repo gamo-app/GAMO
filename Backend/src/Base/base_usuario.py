@@ -1,6 +1,7 @@
 from supabase import create_async_client
 from supabase_config import get_supabase_config
 from fastapi import HTTPException
+from model import UsuarioCreate
 
 async def get_user_from_email(env, email: str, access_token: str):
     url, key = get_supabase_config(env)
@@ -59,311 +60,6 @@ async def get_user_group(env, user_id: str, access_token: str):
             )
     return grupo["nombre"]
 
-# async def create_user(env, datos: SocioAltaCreate) -> dict:
-#     url, key = get_supabase_config(env)
-
-#     headers = {
-#         "apikey": key,
-#         "Authorization": f"Bearer {key}",
-#         "Content-Type": "application/json",
-#     }
-
-#     # 1. Crear la identidad en Supabase Auth
-#     auth_response = await fetch(
-#         f"{url}/auth/v1/admin/users",
-#         method="POST",
-#         headers=headers,
-#         body=json.dumps({
-#             "email": str(datos.usuario.email),
-#             "password": datos.usuario.password,
-#             "email_confirm": False,
-#         }),
-#     )
-
-#     if not auth_response.ok:
-#         detalle = await auth_response.text()
-#         raise HTTPException(
-#             status_code=400,
-#             detail=f"No se pudo crear el usuario en Auth: {detalle}",
-#         )
-
-#     auth_user = await auth_response.json()
-#     id_usuario = auth_user["id"]
-
-#     # 2. Crear persona, usuario y socio mediante la función SQL
-#     payload = {
-#         "p_id_usuario": id_usuario,
-#         "p_persona": datos.persona.model_dump(mode="json"),
-#         "p_usuario": {
-#             "email": str(datos.usuario.email),
-#             "nombre_usuario": datos.usuario.nombre_usuario,
-#         },
-#         "p_id_sede": ID_SEDE_DEFAULT,
-#         "p_id_grupo": ID_GRUPO_SOCIO,
-#     }
-
-#     response = await fetch(
-#         f"{url}/rest/v1/rpc/crear_socio",
-#         method="POST",
-#         headers=headers,
-#         body=json.dumps(payload),
-#     )
-
-#     if not response.ok:
-#         detalle = await response.text()
-
-#         # 3. Intentar limpiar la identidad si falló el registro en GAMO
-#         await fetch(
-#             f"{url}/auth/v1/admin/users/{id_usuario}",
-#             method="DELETE",
-#             headers=headers,
-#         )
-
-#         raise HTTPException(
-#             status_code=400,
-#             detail=f"No se pudo registrar el socio: {detalle}",
-#         )
-
-#     resultado = await response.json()
-
-#     return {
-#         "mensaje": "Socio registrado correctamente",
-#         **resultado,
-#     }
-
-# async def create_user_with_auth(env, datos_usuario: dict, password: str):
-#     url, key = get_supabase_config(env)
-
-#     # 1. Crear usuario en Supabase Auth
-#     auth_resp = await fetch(
-#         f"{url}/auth/v1/signup",
-#         method="POST",
-#         headers={
-#             "apikey": key,
-#             "Content-Type": "application/json",
-#         },
-#         body=json.dumps({
-#             "email": datos_usuario["email"],
-#             "password": password,
-#         }),
-#     )
-
-#     if not auth_resp.ok:
-#         raise HTTPException(
-#             status_code=auth_resp.status,
-#             detail=f"Error en Auth: {await auth_resp.text()}",
-#         )
-
-#     auth_data = await auth_resp.json()
-#     user_info = auth_data.get("user") or auth_data
-#     auth_uuid = user_info["id"]  # Este UUID generado por Auth se usará como FK
-
-#     # 2. Insertar en public.usuario usando ese UUID válido
-#     datos_usuario["id_usuario"] = auth_uuid
-
-#     db_resp = await fetch(
-#         f"{url}/rest/v1/usuario",
-#         method="POST",
-#         headers={
-#             "apikey": key,
-#             "Authorization": f"Bearer {key}",
-#             "Content-Type": "application/json",
-#             "Prefer": "return=representation",
-#         },
-#         body=json.dumps(datos_usuario),
-#     )
-
-#     if not db_resp.ok:
-#         raise HTTPException(
-#             status_code=db_resp.status,
-#             detail=await db_resp.text(),
-#         )
-
-#     return await db_resp.json()
-
-# async def get_sesion(env, id_usuario: str, ):
-#     url, key = get_supabase_config(env)
-
-#     # ========================================================
-#     # 1. Obtener usuario
-#     # ========================================================
-
-#     response = await fetch(
-#         f"{url}/rest/v1/usuario"
-#         f"?id_usuario=eq.{id_usuario}"
-#         "&select=*",
-#         headers={
-#             "apikey": key,
-#             "Authorization": f"Bearer {key}",
-#         },
-#     )
-
-#     if not response.ok:
-#         raise HTTPException(
-#             status_code=response.status,
-#             detail=await response.text(),
-#         )
-
-#     usuarios = await response.json()
-
-#     if not usuarios:
-#         raise HTTPException(
-#             status_code=404,
-#             detail="Usuario no encontrado"
-#         )
-
-#     usuario = usuarios[0]
-
-#     id_persona = usuario["id_persona"]
-#     id_grupo = usuario["id_grupo"]
-
-
-#     # ========================================================
-#     # 2. Obtener persona
-#     # ========================================================
-
-#     response = await fetch(
-#         f"{url}/rest/v1/persona"
-#         f"?id_persona=eq.{id_persona}"
-#         "&select=*",
-#         headers={
-#             "apikey": key,
-#             "Authorization": f"Bearer {key}",
-#         },
-#     )
-
-#     if not response.ok:
-#         raise HTTPException(
-#             status_code=response.status,
-#             detail=await response.text(),
-#         )
-
-#     personas = await response.json()
-
-#     if not personas:
-#         raise HTTPException(
-#             status_code=404,
-#             detail="Persona no encontrada"
-#         )
-
-#     persona = personas[0]
-
-
-#     # ========================================================
-#     # 3. Obtener grupo / rol
-#     # ========================================================
-
-#     response = await fetch(
-#         f"{url}/rest/v1/grupo_usuario"
-#         f"?id_grupo=eq.{id_grupo}"
-#         "&select=*",
-#         headers={
-#             "apikey": key,
-#             "Authorization": f"Bearer {key}",
-#         },
-#     )
-
-#     if not response.ok:
-#         raise HTTPException(
-#             status_code=response.status,
-#             detail=await response.text(),
-#         )
-
-#     grupos = await response.json()
-
-#     if not grupos:
-#         raise HTTPException(
-#             status_code=404,
-#             detail="Grupo de usuario no encontrado"
-#         )
-
-#     grupo = grupos[0]
-
-
-#     # ========================================================
-#     # 4. Buscar si es socio
-#     # ========================================================
-
-#     response = await fetch(
-#         f"{url}/rest/v1/socio"
-#         f"?id_persona=eq.{id_persona}"
-#         "&select=*",
-#         headers={
-#             "apikey": key,
-#             "Authorization": f"Bearer {key}",
-#         },
-#     )
-
-#     if not response.ok:
-#         raise HTTPException(
-#             status_code=response.status,
-#             detail=await response.text(),
-#         )
-
-#     socios = await response.json()
-
-
-#     # ========================================================
-#     # 5. Buscar si es profesor
-#     # ========================================================
-
-#     response = await fetch(
-#         f"{url}/rest/v1/profesor"
-#         f"?id_persona=eq.{id_persona}"
-#         "&select=*",
-#         headers={
-#             "apikey": key,
-#             "Authorization": f"Bearer {key}",
-#         },
-#     )
-
-#     if not response.ok:
-#         raise HTTPException(
-#             status_code=response.status,
-#             detail=await response.text(),
-#         )
-
-#     profesores = await response.json()
-
-
-#     # ========================================================
-#     # 6. Buscar si es representante
-#     # ========================================================
-
-#     response = await fetch(
-#         f"{url}/rest/v1/representante"
-#         f"?id_persona=eq.{id_persona}"
-#         "&select=*",
-#         headers={
-#             "apikey": key,
-#             "Authorization": f"Bearer {key}",
-#         },
-#     )
-
-#     if not response.ok:
-#         raise HTTPException(
-#             status_code=response.status,
-#             detail=await response.text(),
-#         )
-
-#     representantes = await response.json()
-
-
-#     # ========================================================
-#     # 7. Construir respuesta
-#     # ========================================================
-
-#     return {
-#         "usuario": usuario,
-#         "persona": persona,
-#         "rol": grupo,
-#         "socio": socios[0] if socios else None,
-#         "profesor": profesores[0] if profesores else None,
-#         "representante": representantes[0] if representantes else None
-#     }
-
-
-
 async def get_all_usuarios(env, access_token: str):
     url, key = get_supabase_config(env)
     try:
@@ -384,3 +80,89 @@ async def get_all_usuarios(env, access_token: str):
                 detail=f"Error al obtener las clases: {str(e)}"
             )
     return response.data
+
+
+
+
+async def create_user(env, datos: UsuarioCreate):
+    url, key = get_supabase_config(env)
+    supabase = await create_async_client(url, key)
+
+    auth_user = None
+    persona_id = None
+
+    try:
+        # 1. Crear la identidad en Supabase Auth
+        respuesta = await supabase.auth.admin.create_user({
+            "email": datos.email,
+            "password": datos.password,
+            "email_confirm": True,
+        })
+
+        auth_user = respuesta.user
+
+        if auth_user is None:
+            raise HTTPException(
+                status_code=500,
+                detail="No se pudo crear la identidad del usuario.",
+            )
+
+        # 2. Crear la persona
+        persona = await (
+            supabase.table("persona")
+            .insert({
+                "nombre": datos.nombre_usuario,
+                "apellido": datos.apellido,
+            })
+            .execute()
+        )
+
+        persona_id = persona.data[0]["id_persona"]
+
+        # 3. Crear el perfil de GAMO
+        perfil = await (
+            supabase.table("usuario")
+            .insert({
+                "id_usuario": auth_user.id,
+                "id_persona": persona_id,
+                "id_grupo": datos.id_grupo,
+                "id_sede": datos.id_sede,
+                "email": datos.email,
+                "nombre_usuario": datos.email.split("@")[0],
+            })
+            .execute()
+        )
+
+        return {
+            "mensaje": "Usuario creado correctamente.",
+            "usuario": perfil.data[0],
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        # Evitar dejar una identidad huérfana si falla el alta.
+        # En producción, conviene registrar y gestionar también
+        # posibles fallos durante la limpieza.
+        if persona_id is not None:
+            try:
+                await (
+                    supabase.table("persona")
+                    .delete()
+                    .eq("id_persona", persona_id)
+                    .execute()
+                )
+            except Exception:
+                pass
+
+        if auth_user is not None:
+            try:
+                await supabase.auth.admin.delete_user(auth_user.id)
+            except Exception:
+                pass
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"Error al crear el usuario: {str(e)}",
+        )

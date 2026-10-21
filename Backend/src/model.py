@@ -47,6 +47,11 @@ class UsuarioCreate(BaseModel):
     nombre_usuario: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=8, max_length=128)
 
+    nombre: str = Field(min_length=1, max_length=100)
+    apellido: str = Field(min_length=1, max_length=100)
+    id_grupo: int
+    id_sede: int | None = None
+
 
 # Datos propios del socio
 class SocioCreate(BaseModel):
