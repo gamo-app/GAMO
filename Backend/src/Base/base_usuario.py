@@ -8,6 +8,7 @@ import json
 import jwt
 from supabase_config import get_supabase
 from postgrest import APIError
+from Base import base_alta_usuario as alta
 JWT_SECRET = "rot8jwyocrmwefDXFGVERVDSFCGWERCGWerwok9r9834752345%&/"  # espamié el teclado, no se si es seguro
 ID_SEDE_DEFAULT = 1
 ID_GRUPO_SOCIO = 1
@@ -51,11 +52,13 @@ async def generate_jwt(env, user_id: str):
 
 async def get_user_from_email(env, email : str):
     supabase = get_supabase(env)
+
     try:
-        response = supabase.table("usuario").select("*").eq("email", email.strip).limit(1).execute()
+        response = supabase.table("usuario").select("*").eq("email", email.strip()).limit(1).execute()
     except APIError as e:
         return f"Error al buscar usuario por mail: {e.message}"
 
+    
     if response.data:
         return response.data[0]
 
@@ -385,3 +388,31 @@ async def get_all_usuarios(env):
         return f"Error al cargar usuarios: {e.message}"
 
     return response  
+
+
+
+
+
+async def send_reset_password_email(env, email : str):
+
+    user = await get_user_from_email(env, email)
+    print(user)
+    if not user:
+        return "MAIL NO REGISTRADO"
+
+    supabase = get_supabase(env)
+    supabase.auth.reset_password_for_email(email, {"redirect_to" : "https://gamo-ekk.pages.dev/me-olvide"})
+    return "Si ese mail está registrado, se le enviará un mail para proseguir con el cambio de contraseña"
+
+'''
+async def update_password(env, user_id : int, new_password : str):
+
+    
+
+
+    supabase = get_supabase(env)
+    try:
+        new_hash, new_salt = alta._generar_hash_y_salt(new_password)
+        response = supabase.table("usuario").update("hash", new_hash)
+    except APIError as e:
+        return f"Error al cambiar la contraseña: {e.message}"'''

@@ -29,8 +29,13 @@ async def get_mi_sesion(request: Request, id_usuario: str):
         id_usuario
     )
 
-
-
+@router.post("/send-password-reset-mail/{mail}")
+async def get_usuarios(request: Request, mail : str):
+    try:
+        return await usuario.send_reset_password_email(request.scope["env"], mail)
+    except  HTTPException as e:
+        raise HTTPException(400, detail=e.args) 
+    
 #get all usuarios
 @router.get("")
 async def get_usuarios(request: Request):
