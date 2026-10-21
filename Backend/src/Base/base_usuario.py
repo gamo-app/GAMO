@@ -6,7 +6,8 @@ from workers import fetch
 from model import SocioAltaCreate
 import json
 import jwt
-
+from supabase_config import get_supabase
+from postgrest import APIError
 JWT_SECRET = "rot8jwyocrmwefDXFGVERVDSFCGWERCGWerwok9r9834752345%&/"  # espamié el teclado, no se si es seguro
 ID_SEDE_DEFAULT = 1
 ID_GRUPO_SOCIO = 1
@@ -47,49 +48,29 @@ async def generate_jwt(env, user_id: str):
     token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
     return token
 
+
 async def get_user_from_email(env, email : str):
-    url, key = get_supabase_config(env)
-    response = await fetch(
-        f"{url}/rest/v1/usuario?email=eq.{email.strip()}&select=*&limit=1",
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-        },
-    )
+    supabase = get_supabase(env)
+    try:
+        response = supabase.table("usuario").select("*").eq("email", email.strip).limit(1).execute()
+    except APIError as e:
+        return f"Error al buscar usuario por mail: {e.message}"
 
-    if not response.ok:
-        raise HTTPException(
-            status_code=response.status,
-            detail=await response.text(),
-        )
-
-    result = await response.json()
-
-    if result:
-        return result[0]
+    if response.data:
+        return response.data[0]
 
     return []
 
+async def get_user_group(env, user_id : str):
+    supabase = get_supabase(env)
+    try:
+        response = supabase.table("usuario").select("grupo_usuario(nombre)").eq("id_usuario", user_id).execute()
+    except APIError as e:
+        return f"Error al buscar grupo de usuario: {e.message}"
+
+    return response.data[0]["grupo_usuario"]["nombre"]
 
 
-async def get_user_group(env, user_id: str):
-    url, key = get_supabase_config(env)
-    response = await fetch(
-        f"{url}/rest/v1/usuario?id_usuario=eq.{user_id}&select=grupo_usuario(nombre)",
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-        },
-    )
-
-    if not response.ok:
-        raise HTTPException(
-            status_code=response.status,
-            detail=await response.text(),
-        )
-
-    data = await response.json()
-    return data[0]["grupo_usuario"]["nombre"]
 
 async def create_user(env, datos: SocioAltaCreate) -> dict:
     url, key = get_supabase_config(env)
@@ -397,19 +378,10 @@ async def get_sesion(env, id_usuario: str):
 
 
 async def get_all_usuarios(env):
-    url, key = get_supabase_config(env)
-    response = await fetch(
-        f"{url}/rest/v1/usuario?select=*",
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-        },
-    )
+    supabase = get_supabase(env)
+    try:
+        response = supabase.table("usuario").select("*").execute()
+    except APIError as e:
+        return f"Error al cargar usuarios: {e.message}"
 
-    if not response.ok:
-        raise HTTPException(
-            status_code=response.status,
-            detail=await response.text(),
-        )
-
-    return await response.json()   
+    return response  

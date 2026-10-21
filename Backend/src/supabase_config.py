@@ -2,7 +2,7 @@ import os
 from fastapi import HTTPException
 from supabase import create_client, Client
 
-def get_supabase(env):
+def get_supabase(env) -> Client:
     url = getattr(env, "SUPABASE_URL", None)
     key = getattr(env, "SUPABASE_KEY", None)
     return  create_client(url, key)

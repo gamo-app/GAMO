@@ -16,6 +16,8 @@ async def get_historial_asistencia_socio(
     desde: date | None = None,
     hasta: date | None = None,
 ):
+
+    
     return await asistencia.get_historial_asistencia_socio(
         request.scope["env"], id_socio, desde=desde, hasta=hasta
     )
