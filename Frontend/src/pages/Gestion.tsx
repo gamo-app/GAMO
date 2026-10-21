@@ -1,32 +1,22 @@
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
+
 import NavBar from "../components/Navbar";
 import Header from "../components/Header";
 import Socio from "../components/Socio";
 import Main from "../components/Main";
-import Icon from "../components/Icon"
-import Error from "../pages/404"
-import { LIMITE_REGISTROS } from "../database/Config";
+import Icon from "../components/Icon";
+import Error from "../pages/404";
 import Socioparticular from "./Socioparticular";
+
+import { LIMITE_REGISTROS } from "../database/Config";
 import {
-  getSocios,
   getProfesores,
   getRepresentantes,
-  getAdmins,
+  getSociosFiltrados,
 } from "../database/Api";
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
 
-type SocioData = {
-  id_socio: number;
-  id_usuario: string | null;
-  nombre: string;
-  apellido: string;
-  id_sede: number;
-  id_plan: number;
-  fecha_alta: string;
-  estado: string;
-  telefono: string;
-  dni: string;
-};
+import type { SocioData } from "../database/Api";
 
 type Tipo = "socios" | "profesores" | "representantes" | "admins";
 
@@ -40,23 +30,37 @@ const rutasAgregar: Record<Tipo, { ruta: string; texto: string }> = {
   admins: { ruta: "admin", texto: "Agregar nuevo administrador" },
 };
 
-function Socios() {
+function Gestion() {
   const { id } = useParams();
 
-const [limite, setLimite] = useState(LIMITE_REGISTROS);
+  const [pagina, setPagina] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const [limite, setLimite] = useState(LIMITE_REGISTROS);
+
   const [respuesta, setRespuesta] = useState<SocioData[]>([]);
   const [cargando, setCargando] = useState(true);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
-  // Filtros
+  // Texto escrito y texto aplicado a la búsqueda
   const [busqueda, setBusqueda] = useState("");
+  const [busquedaAplicada, setBusquedaAplicada] = useState("");
+
+  // Filtros adicionales
   const [sede, setSede] = useState("");
   const [estado, setEstado] = useState("");
   const [tipo, setTipo] = useState<Tipo>("socios");
 
-useEffect(() => {
-  setLimite(LIMITE_REGISTROS);
-}, [busqueda, sede, estado, tipo]);
+  // Reiniciar paginación al cambiar de categoría
+  useEffect(() => {
+    setPagina(1);
+    setLimite(LIMITE_REGISTROS);
+    setSede("");
+    setEstado("");
+    setBusqueda("");
+    setBusquedaAplicada("");
+  }, [tipo]);
+
+  // Obtener datos
   useEffect(() => {
     let cancelado = false;
 
@@ -64,30 +68,56 @@ useEffect(() => {
       setCargando(true);
 
       try {
+        if (tipo === "socios") {
+          const resultado = await getSociosFiltrados({
+            page: pagina,
+            limit: limite,
+            buscar: busquedaAplicada || undefined,
+          });
+
+          if (!cancelado) {
+            setRespuesta(
+              Array.isArray(resultado.datos) ? resultado.datos : []
+            );
+
+            setTotalPaginas(
+              resultado.paginacion?.totalPaginas ?? 1
+            );
+          }
+
+          return;
+        }
+
         let resultado: SocioData[];
 
         switch (tipo) {
           case "profesores":
             resultado = await getProfesores<SocioData[]>();
             break;
+
           case "representantes":
             resultado = await getRepresentantes<SocioData[]>();
             break;
+
           case "admins":
-            resultado = await getAdmins<SocioData[]>();
+            // Agregar getAdmins cuando esté disponible en Api.tsx.
+            resultado = [];
             break;
+
           default:
-            resultado = await getSocios<SocioData[]>();
+            resultado = [];
         }
 
         if (!cancelado) {
           setRespuesta(Array.isArray(resultado) ? resultado : []);
+          setTotalPaginas(1);
         }
       } catch (error) {
         console.error("Error al cargar datos:", error);
 
         if (!cancelado) {
           setRespuesta([]);
+          setTotalPaginas(1);
         }
       } finally {
         if (!cancelado) {
@@ -101,23 +131,11 @@ useEffect(() => {
     return () => {
       cancelado = true;
     };
-  }, [tipo]);
+  }, [tipo, pagina, limite, busquedaAplicada]);
 
-  // Buscar por nombre, apellido, DNI o teléfono
+  // Filtros locales adicionales.
+  // La búsqueda por texto de los socios se realiza en el backend.
   const sociosFiltrados = respuesta.filter((socio) => {
-    const texto = busqueda.trim().toLowerCase();
-
-    const coincideBusqueda =
-      texto === "" ||
-      `${socio.nombre ?? ""} ${socio.apellido ?? ""}`
-        .toLowerCase()
-        .includes(texto) ||
-      `${socio.apellido ?? ""} ${socio.nombre ?? ""}`
-        .toLowerCase()
-        .includes(texto) ||
-      String(socio.dni ?? "").toLowerCase().includes(texto) ||
-      String(socio.telefono ?? "").toLowerCase().includes(texto);
-
     const coincideSede =
       sede === "" || String(socio.id_sede) === sede;
 
@@ -125,15 +143,26 @@ useEffect(() => {
       .toLowerCase()
       .trim();
 
+    const estadoCuota = String(socio.estado_cuota ?? "")
+      .toLowerCase()
+      .trim();
+
     const coincideEstado =
       estado === "" ||
       (estado === "morosos"
-        ? false // Requiere un dato real de deuda.
+        ? estadoCuota === "vencida"
         : estadoSocio === estado);
 
-    return coincideBusqueda && coincideSede && coincideEstado;
+    return coincideSede && coincideEstado;
   });
-const sociosVisibles = sociosFiltrados.slice(0, limite);
+
+  // Mostrar más registros para profesores y representantes
+  const sociosVisibles =
+    tipo === "socios"
+      ? sociosFiltrados
+      : sociosFiltrados.slice(0, limite);
+
+  // Vista de un socio individual
   if (id && tipo === "socios") {
     if (cargando) {
       return <Main>Cargando socio...</Main>;
@@ -144,14 +173,19 @@ const sociosVisibles = sociosFiltrados.slice(0, limite);
     );
 
     if (!socio) {
-      return <Error></Error>;
+      return <Error />;
     }
 
     return <Socioparticular socio={socio} />;
   }
 
-  const cambiarEstado = (nuevoEstado: string) => {
-    setEstado(nuevoEstado);
+  // Aplicar búsqueda al pulsar el botón
+  const buscar = () => {
+    const texto = busqueda.trim();
+
+    setPagina(1);
+    setBusqueda(texto);
+    setBusquedaAplicada(texto);
   };
 
   return (
@@ -160,10 +194,13 @@ const sociosVisibles = sociosFiltrados.slice(0, limite);
 
       <section style={{ padding: "0" }}>
         <div className="listabloques columnafija">
-         <details
-  className="bloque persistente estirado"
-  onToggle={(e) => setFiltrosAbiertos(e.currentTarget.open)}
->
+          <details
+            className="bloque persistente estirado"
+            open={filtrosAbiertos}
+            onToggle={(e) =>
+              setFiltrosAbiertos(e.currentTarget.open)
+            }
+          >
             <div
               className="divisorx2 espaciado2"
               style={{ marginBottom: "2vh" }}
@@ -174,16 +211,21 @@ const sociosVisibles = sociosFiltrados.slice(0, limite);
                 placeholder="Buscar nombre, apellido, DNI o teléfono..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    buscar();
+                  }
+                }}
               />
 
               <button
                 type="button"
                 className="azul buscar"
-                
-                onClick={() => setBusqueda(busqueda.trim())}
+                onClick={buscar}
+                disabled={cargando}
               >
-                <Icon tipo={3} tamaño={1.8} color={2}></Icon>
-              Buscar
+                <Icon tipo={3} tamaño={1.8} color={2} />
+                Buscar
               </button>
             </div>
 
@@ -191,11 +233,9 @@ const sociosVisibles = sociosFiltrados.slice(0, limite);
               <select
                 className="blanco"
                 value={tipo}
-                onChange={(e) => {
-                  setTipo(e.target.value as Tipo);
-                  setSede("");
-                  setEstado("");
-                }}
+                onChange={(e) =>
+                  setTipo(e.target.value as Tipo)
+                }
               >
                 <option value="socios">Socios</option>
                 <option value="profesores">Profesores</option>
@@ -206,18 +246,12 @@ const sociosVisibles = sociosFiltrados.slice(0, limite);
               <select
                 className="blanco"
                 value={estado}
-                onChange={(e) => cambiarEstado(e.target.value)}
+                onChange={(e) => setEstado(e.target.value)}
               >
-                {[
-                  { texto: "Todos", valor: "" },
-                  { texto: "Morosos", valor: "morosos" },
-                  { texto: "Inactivos", valor: "inactivo" },
-                  { texto: "Activos", valor: "activo" },
-                ].map((filtro) => (
-                  <option key={filtro.texto} value={filtro.valor}>
-                    {filtro.texto}
-                  </option>
-                ))}
+                <option value="">Todos</option>
+                <option value="morosos">Morosos</option>
+                <option value="inactivo">Inactivos</option>
+                <option value="activo">Activos</option>
               </select>
 
               <select
@@ -243,19 +277,19 @@ const sociosVisibles = sociosFiltrados.slice(0, limite);
               </select>
             </div>
 
-         <summary>
-  {filtrosAbiertos ? "Cerrar filtros" : "Abrir filtros"}
-</summary>
+            <summary>
+              {filtrosAbiertos ? "Cerrar filtros" : "Abrir filtros"}
+            </summary>
           </details>
 
           <div className="bloque estirado">
-        <div
-  className={
-    cargando || (respuesta.length > 0 && sociosFiltrados.length > 0)
-      ? "listay3"
-      : "listay"
-  }
->
+            <div
+              className={
+                cargando || sociosVisibles.length > 0
+                  ? "listay3"
+                  : "listay"
+              }
+            >
               <Link
                 to={`/agregar/${rutasAgregar[tipo].ruta}`}
                 className="rectangulo"
@@ -284,50 +318,78 @@ const sociosVisibles = sociosFiltrados.slice(0, limite);
                   <Socio carga={true} />
                   <Socio carga={true} />
                   <Socio carga={true} />
-                  
                 </>
-              ) : respuesta.length === 0 ? (
-                <>
-                <br />
-                <br />
-                <br />
-                  <Icon tipo={12} tamaño={10}></Icon>
-                <p>No hay registros disponibles.</p>
-</>
-              ) : sociosFiltrados.length === 0 ? (
+              ) : sociosVisibles.length === 0 ? (
                 <div className="listay">
-                   <br />
-                <br />
-                <br />
-                  <Icon tipo={12} tamaño={10}></Icon>
-
- <p>No se encontraron registros con esos filtros.</p>
+                  <br />
+                  <br />
+                  <br />
+                  <Icon tipo={12} tamaño={10} />
+                  <p>
+                    {respuesta.length === 0
+                      ? "No hay registros disponibles."
+                      : "No se encontraron registros con esos filtros."}
+                  </p>
                 </div>
-               
               ) : (
-                <>
-  {sociosVisibles.map((socio) => (
-    <Socio
-      key={socio.id_socio}
-      socio={socio}
-      carga={false}
-    />
-  ))}
-
- 
-</>
+                sociosVisibles.map((socio) => (
+                  <Socio
+                    key={socio.id_socio}
+                    socio={socio}
+                    carga={false}
+                  />
+                ))
               )}
             </div>
           </div>
-           {limite < sociosFiltrados.length && (
-    <button
-      type="button"
-      className="azul"
-      onClick={() => setLimite((anterior) => anterior + LIMITE_REGISTROS)}
-    >
-      Mostrar más
-    </button>
-  )}
+
+          {tipo === "socios" && totalPaginas > 1 && (
+            <div className="divisorx espaciado2">
+              <button
+                type="button"
+                className="azul"
+                disabled={pagina <= 1 || cargando}
+                onClick={() =>
+                  setPagina((actual) => actual - 1)
+                }
+              >
+                Anterior
+              </button>
+
+              <span>
+                Página {pagina} de {totalPaginas}
+              </span>
+
+              <button
+                type="button"
+                className="azul"
+                disabled={
+                  pagina >= totalPaginas || cargando
+                }
+                onClick={() =>
+                  setPagina((actual) => actual + 1)
+                }
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
+
+          {tipo !== "socios" &&
+            limite < sociosFiltrados.length && (
+              <button
+                type="button"
+                className="azul"
+                onClick={() =>
+                  setLimite(
+                    (anterior) =>
+                      anterior + LIMITE_REGISTROS
+                  )
+                }
+              >
+                Mostrar más
+              </button>
+            )}
         </div>
       </section>
 
@@ -336,4 +398,4 @@ const sociosVisibles = sociosFiltrados.slice(0, limite);
   );
 }
 
-export default Socios;
+export default Gestion;

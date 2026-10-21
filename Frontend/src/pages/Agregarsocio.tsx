@@ -5,9 +5,8 @@ import Main from "../components/Main";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   setSocio,
-  setRepresentante,
-  setProfesor,
   setAdmin,
+  setUsuarioRecepcion,
 } from "../database/Api";
 import { useState } from "react";
 
@@ -70,58 +69,102 @@ function Agregarsocio() {
     }));
   }
 
-  async function crearUsuario(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setCargando(true);
-    setError("");
+ 
+async function crearUsuario(e: React.FormEvent<HTMLFormElement>) {
+  e.preventDefault();
 
-    try {
-      
-const datos = {
-  persona: {
-    nombre: formulario.nombre,
-    apellido: formulario.apellido,
-    dni: formulario.dni,
-    telefono: formulario.telefono,
-    fecha_nacimiento: formulario.fecha_nacimiento,
-  },
-  usuario: {
-    email: formulario.email,
-    nombre_usuario: formulario.nombre_usuario,
-    password: formulario.password,
-  },
-  id_plan: Number(formulario.id_plan) || 1,
-};
+  if (cargando) return;
 
+  setCargando(true);
+  setError("");
 
-      switch (tipoUsuario) {
-        case "socio":
-        await setSocio(datos);
-          break;
+  try {
+    const persona = {
+      nombre: formulario.nombre.trim(),
+      apellido: formulario.apellido.trim(),
+      dni: formulario.dni.trim(),
+      telefono: formulario.telefono.trim(),
+      fecha_nacimiento: formulario.fecha_nacimiento,
+    };
 
-        case "admin":
-          await setAdmin(datos);
-          break;
+    const usuario = {
+      email: formulario.email.trim(),
+      nombre_usuario: formulario.nombre_usuario.trim(),
+      password: formulario.password,
+    };
 
-        case "profesor":
-          await setProfesor(datos);
-          break;
-
-        case "representante":
-          await setRepresentante(datos);
-          break;
-      }
-
-      navigate("/gestion");
-    } catch (err) {
-      console.error(`Error al crear ${nombreTipo[tipoUsuario]}:`, err);
-      setError(
-        `No se pudo crear el ${nombreTipo[tipoUsuario]}. Intentá nuevamente.`
-      );
-    } finally {
-      setCargando(false);
+    if (
+      !persona.nombre ||
+      !persona.apellido ||
+      !persona.dni ||
+      !persona.telefono ||
+      !persona.fecha_nacimiento ||
+      !usuario.email ||
+      !usuario.nombre_usuario ||
+      !usuario.password
+    ) {
+      setError("Completá todos los campos obligatorios.");
+      return;
     }
+
+    if (tipoUsuario === "socio" && !formulario.id_plan) {
+      setError("Seleccioná un plan.");
+      return;
+    }
+if (formulario.password.length < 8) {
+  setError("La contraseña debe tener al menos 8 caracteres.");
+  return;
+}
+    switch (tipoUsuario) {
+      case "socio":
+        await setSocio({
+          persona,
+          usuario,
+          id_plan: Number(formulario.id_plan),
+        });
+        break;
+
+      case "profesor":
+        await setUsuarioRecepcion({
+          ...persona,
+          email: usuario.email,
+          password: usuario.password,
+          rol: "profesor",
+          id_sede: 1,
+        });
+        break;
+
+      case "representante":
+        setError(
+          "Falta definir el endpoint de creación de representantes en la API."
+        );
+        return;
+
+      case "admin":
+        await setAdmin({
+          ...persona,
+          email: usuario.email,
+          password: usuario.password,
+          rol: "admin",
+          id_sede: 1,
+        });
+        break;
+    }
+
+    navigate("/gestion");
+  } catch (err) {
+    console.error(`Error al crear ${nombreTipo[tipoUsuario]}:`, err);
+
+    setError(
+      err instanceof Error
+        ? err.message
+        : `No se pudo crear el ${nombreTipo[tipoUsuario]}.`
+    );
+  } finally {
+    setCargando(false);
   }
+}
+
 
   return (
     <Main>
@@ -226,14 +269,15 @@ const datos = {
               />
 
               <label htmlFor="password">Contraseña</label>
-              <input
+             <input
                 className="blanco"
                 id="password"
                 name="password"
                 type="password"
-                placeholder="Contraseña"
+                placeholder="Contraseña (mínimo 8 caracteres)"
                 value={formulario.password}
                 onChange={cambiar}
+                minLength={8}
                 required
               />
 

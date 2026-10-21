@@ -1,11 +1,10 @@
 import Icon from "../components/Icon";
 import {  useNavigate } from "react-router-dom";
-import Main from "../components/Main";
 function Error() {
   const navigate = useNavigate();
   
   return (
-    <Main>
+    <>
       
 
       <section className="centro">
@@ -20,7 +19,7 @@ function Error() {
    
       </section>
 
-   </Main>
+   </>
   );
 }
 

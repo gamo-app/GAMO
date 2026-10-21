@@ -2,6 +2,7 @@
 import Icon from "./Icon";
 import {  useNavigate, Link } from "react-router-dom";
 import { storage } from "../database/Storage";
+import { memo } from "react";
 import { confirmar } from "../components/Alerta";
 function Header({ atras = false, login= false,salir=false }) {
   const navigate = useNavigate();
@@ -58,4 +59,4 @@ function Header({ atras = false, login= false,salir=false }) {
   );
 }
 
-export default Header;
+export default memo(Header);
