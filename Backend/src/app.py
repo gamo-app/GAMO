@@ -11,6 +11,7 @@ from Routers import (
     router_persona as persona,
     router_profesor as profesor,
     router_representante as representante,
+    router_roles as roles,
     router_sede as sede,
     router_socio as socio,
     router_usuario as usuario,
@@ -114,3 +115,9 @@ app.include_router(usuario.router,
                    tags=['Usuario'],
                     dependencies=[Depends(validar_sesion)],
                    responses={404: {"Usuario": "Not Found"}})
+
+app.include_router(roles.router,
+                   prefix='/roles',
+                   tags=['Roles'],
+                   dependencies=[Depends(validar_sesion)],
+                   responses={404: {"Roles": "Not Found"}})
