@@ -5,9 +5,26 @@ from Base import base_roles as roles
 
 router = APIRouter()
 
+RESPUESTAS = {
+    401: {"description": "Sesión inválida o vencida"},
+    403: {"description": "El usuario no tiene permisos para ver este listado"},
+}
 
-@router.get("", response_model=roles.ListadoUsuariosResponse)
-@router.get("/filtro", response_model=roles.ListadoUsuariosResponse)
+
+async def solo_staff(
+    request: Request,
+    access_token: str = Depends(validar_sesion),
+) -> str:
+    """
+    Valida la sesión y que el usuario pertenezca a un grupo con acceso al listado
+    (ver GRUPOS_CON_ACCESO en base_roles). Devuelve el token para usarlo en la consulta.
+    """
+    await roles.validar_acceso_listado(request.scope.get("env"), access_token)
+    return access_token
+
+
+@router.get("", response_model=roles.ListadoUsuariosResponse, responses=RESPUESTAS)
+@router.get("/filtro", response_model=roles.ListadoUsuariosResponse, responses=RESPUESTAS)
 async def get_usuarios_filtrados_por_rol(
     request: Request,
     page: int = Query(1, ge=1, description="Número de página"),
@@ -22,7 +39,7 @@ async def get_usuarios_filtrados_por_rol(
     ),
     id_sede: Optional[int] = Query(
         None,
-        description="ID de la sede (omitir para Todas las sedes)",
+        description="ID de la sede (omitir, o 0, para Todas las sedes)",
     ),
     buscar: Optional[str] = Query(
         None,
@@ -31,14 +48,13 @@ async def get_usuarios_filtrados_por_rol(
     ),
     id_plan: Optional[int] = Query(
         None,
-        description="Opcional: filtrar socios por ID de plan de membresía",
+        description="Opcional: filtrar socios por ID de plan de membresía (0 = sin filtro)",
     ),
     id_deporte: Optional[int] = Query(
         None,
-        description="Opcional: filtrar representantes por ID de deporte",
+        description="Opcional: filtrar representantes por ID de deporte (0 = sin filtro)",
     ),
-    # Cambiamos Depends(validar_sesion) por None para probar sin sesión:
-    access_token: Optional[str] = None,
+    access_token: str = Depends(solo_staff),
 ):
     return await roles.filtrar_usuarios_por_rol(
         env=request.scope.get("env"),
