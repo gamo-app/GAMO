@@ -107,9 +107,13 @@ export async function iniciarSesion(
   });
 
   localStorage.setItem("jwt", respuesta.jwt);
+
+  if (window.AndroidApp) {
+    window.AndroidApp.guardarIdUsuario(respuesta.jwt);
+  }
+
   return respuesta;
 }
-
 export function cerrarSesion(): void {
   localStorage.removeItem("jwt");
 }
