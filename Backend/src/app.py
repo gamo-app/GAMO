@@ -30,6 +30,14 @@ async def lifespan(app:FastAPI):
 
 app = FastAPI(title="GAMO API", version="0.1.0", lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173","https://gamo-ekk.pages.dev"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(login.router,
                    prefix='/login',
                    tags=['login'],
@@ -97,13 +105,7 @@ app.include_router(sede.router,
                    dependencies=[Depends(validar_sesion)],
                    responses={404: {"sede": "Not Found"}})
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173","https://gamo-ekk.pages.dev"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
 app.include_router(socio.router,
                    prefix='/socio',
                    tags=['Socio'],
@@ -121,3 +123,9 @@ app.include_router(roles.router,
                    tags=['Roles'],
                    dependencies=[Depends(validar_sesion)],
                    responses={404: {"Roles": "Not Found"}})
+
+app.include_router(inscripcion.router,
+                   prefix='/inscripcion',
+                   tags=['inscripcion'],
+                   dependencies=[Depends(validar_sesion)],
+                   responses={404: {"inscripcion": "Not Found"}})

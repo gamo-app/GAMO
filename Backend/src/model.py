@@ -1,7 +1,7 @@
 # model.py
 from datetime import date
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from pydantic import BaseModel
 from typing import Optional
@@ -119,3 +119,45 @@ class LoginData(BaseModel):
 class LoginCreate(BaseModel):
     username: str  # o email
     password: str
+
+
+class UsuarioFiltradoResponse(BaseModel):
+    id_usuario: str
+    id_persona: int
+    nombre: str
+    apellido: str
+    dni: Optional[str] = None
+    telefono: Optional[str] = None
+    fecha_nacimiento: Optional[str] = None
+    email: str
+    nombre_usuario: Optional[str] = None
+    rol: str
+    estado: str
+    id_sede: Optional[int] = None
+    sede: Optional[str] = None
+    id_socio: Optional[int] = None
+    codigo_credencial: Optional[str] = None
+    fecha_alta: Optional[str] = None
+    id_plan: Optional[int] = None
+    plan: Optional[str] = None
+    estado_membresia: Optional[str] = None
+    fecha_vencimiento_cuota: Optional[str] = None
+    estado_cuota: Optional[str] = None
+    monto_cuota: Optional[float] = None
+    es_moroso: bool = False
+    id_profesor: Optional[int] = None
+    id_representante: Optional[int] = None
+    id_deporte: Optional[int] = None
+    deporte: Optional[str] = None
+
+
+class PaginacionUsuariosInfo(BaseModel):
+    paginaActual: int
+    elementosPorPagina: int
+    totalPaginas: int
+    totalRegistros: int
+
+
+class ListadoUsuariosResponse(BaseModel):
+    datos: List[UsuarioFiltradoResponse]
+    paginacion: PaginacionUsuariosInfo
