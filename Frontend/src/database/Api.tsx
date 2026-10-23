@@ -385,15 +385,29 @@ export async function crearUsuario<T = unknown>(
   return post<T, UsuarioDatos>("/usuario", usuario);
 }
 
-export async function setSocio<T = unknown>(
-  socio: NuevoSocioPayload
-): Promise<T> {
-  const respuesta = await post<T, NuevoSocioPayload>(
-    "/usuario/socio",
-    socio
-  );
-  storage.invalidar("listaSocios");
-  return respuesta;
+export interface CrearSocioPayload {
+  persona: {
+    nombre: string;
+    apellido: string;
+    dni: string;
+    telefono: string;
+    fecha_nacimiento: string;
+  };
+  usuario: {
+    email: string;
+    nombre_usuario: string;
+    password: string;
+  };
+  id_plan: number;
+}
+
+export async function setSocio(
+  datos: CrearSocioPayload
+) {
+  return api("/usuario/socio", {
+    method: "POST",
+    body: JSON.stringify(datos),
+  });
 }
 
 // La documentación de /usuario/admin recibe un objeto plano,
@@ -424,14 +438,3 @@ export async function setUsuarioRecepcion<T = unknown>(
 // Estos alias mantienen compatibilidad con nombres usados en el frontend.
 // IMPORTANTE: /usuario/socio crea el alta anidada de socio; no hay rutas
 // específicas /usuario/profesor o /usuario/representante en el OpenAPI aportado.
-export async function setRepresentante<T = unknown>(
-  socio: NuevoSocioPayload
-): Promise<T> {
-  return setSocio<T>(socio);
-}
-
-export async function setProfesor<T = unknown>(
-  socio: NuevoSocioPayload
-): Promise<T> {
-  return setSocio<T>(socio);
-}

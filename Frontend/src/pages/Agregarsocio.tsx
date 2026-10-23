@@ -16,8 +16,6 @@ function Agregarsocio() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Detectar el tipo de usuario desde la URL.
-  // Si no hay tipo reconocido, se usa socio.
   const partes = location.pathname.split("/").filter(Boolean);
   const ultimoSegmento = partes[partes.length - 1];
 
@@ -69,102 +67,110 @@ function Agregarsocio() {
     }));
   }
 
- 
-async function crearUsuario(e: React.FormEvent<HTMLFormElement>) {
-  e.preventDefault();
+  async function crearUsuario(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
 
-  if (cargando) return;
+    if (cargando) return;
 
-  setCargando(true);
-  setError("");
+    setCargando(true);
+    setError("");
 
-  try {
-    const persona = {
-      nombre: formulario.nombre.trim(),
-      apellido: formulario.apellido.trim(),
-      dni: formulario.dni.trim(),
-      telefono: formulario.telefono.trim(),
-      fecha_nacimiento: formulario.fecha_nacimiento,
-    };
+    try {
+      const persona = {
+        nombre: formulario.nombre.trim(),
+        apellido: formulario.apellido.trim(),
+        dni: formulario.dni.trim(),
+        telefono: formulario.telefono.trim(),
+        fecha_nacimiento: formulario.fecha_nacimiento,
+      };
 
-    const usuario = {
-      email: formulario.email.trim(),
-      nombre_usuario: formulario.nombre_usuario.trim(),
-      password: formulario.password,
-    };
+      const usuario = {
+        email: formulario.email.trim(),
+        nombre_usuario: formulario.nombre_usuario.trim(),
+        password: formulario.password,
+      };
 
-    if (
-      !persona.nombre ||
-      !persona.apellido ||
-      !persona.dni ||
-      !persona.telefono ||
-      !persona.fecha_nacimiento ||
-      !usuario.email ||
-      !usuario.nombre_usuario ||
-      !usuario.password
-    ) {
-      setError("Completá todos los campos obligatorios.");
-      return;
-    }
+      if (
+        !persona.nombre ||
+        !persona.apellido ||
+        !persona.dni ||
+        !persona.telefono ||
+        !persona.fecha_nacimiento ||
+        !usuario.email ||
+        !usuario.nombre_usuario ||
+        !usuario.password
+      ) {
+        setError("Completá todos los campos obligatorios.");
+        return;
+      }
 
-    if (tipoUsuario === "socio" && !formulario.id_plan) {
-      setError("Seleccioná un plan.");
-      return;
-    }
-if (formulario.password.length < 8) {
-  setError("La contraseña debe tener al menos 8 caracteres.");
-  return;
-}
-    switch (tipoUsuario) {
-      case "socio":
-        await setSocio({
-          persona,
-          usuario,
+      if (formulario.password.length < 8) {
+        setError("La contraseña debe tener al menos 8 caracteres.");
+        return;
+      }
+
+      if (tipoUsuario === "socio") {
+        if (!formulario.id_plan) {
+          setError("Seleccioná un plan.");
+          return;
+        }
+
+        // Estructura exacta que espera POST /usuario/socio.
+        const datosSocio = {
+          persona: {
+            nombre: persona.nombre,
+            apellido: persona.apellido,
+            dni: persona.dni,
+            telefono: persona.telefono,
+            fecha_nacimiento: persona.fecha_nacimiento,
+          },
+          usuario: {
+            email: usuario.email,
+            nombre_usuario: usuario.nombre_usuario,
+            password: usuario.password,
+          },
           id_plan: Number(formulario.id_plan),
-        });
-        break;
+        };
 
-      case "profesor":
-        await setUsuarioRecepcion({
-          ...persona,
-          email: usuario.email,
-          password: usuario.password,
-          rol: "profesor",
-          id_sede: 1,
-        });
-        break;
+        console.log("Datos enviados para crear socio:", datosSocio);
 
-      case "representante":
+        await setSocio(datosSocio);
+      } else if (tipoUsuario === "profesor") {
+  await setUsuarioRecepcion({
+    ...persona,
+    email: usuario.email,
+    password: usuario.password,
+    rol: "profesor",
+    id_sede: 1,
+  });
+} else if (tipoUsuario === "admin") {
+  await setAdmin({
+    ...persona,
+    email: usuario.email,
+    password: usuario.password,
+    rol: "admin",
+    id_sede: 1,
+  });
+}else {
         setError(
           "Falta definir el endpoint de creación de representantes en la API."
         );
         return;
+      }
 
-      case "admin":
-        await setAdmin({
-          ...persona,
-          email: usuario.email,
-          password: usuario.password,
-          rol: "admin",
-          id_sede: 1,
-        });
-        break;
+      navigate("/gestion");
+    } catch (err) {
+      console.error(`Error al crear ${nombreTipo[tipoUsuario]}:`, err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : `No se pudo crear el ${nombreTipo[tipoUsuario]}.`
+      );
+    } finally {
+      setCargando(false);
     }
-
-    navigate("/gestion");
-  } catch (err) {
-    console.error(`Error al crear ${nombreTipo[tipoUsuario]}:`, err);
-
-    setError(
-      err instanceof Error
-        ? err.message
-        : `No se pudo crear el ${nombreTipo[tipoUsuario]}.`
-    );
-  } finally {
-    setCargando(false);
   }
-}
-
 
   return (
     <Main>
@@ -269,7 +275,7 @@ if (formulario.password.length < 8) {
               />
 
               <label htmlFor="password">Contraseña</label>
-             <input
+              <input
                 className="blanco"
                 id="password"
                 name="password"
