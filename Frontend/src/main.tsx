@@ -3,6 +3,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+import { AuthProvider } from "./context/AuthContext";
+
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import User from "./pages/User";
@@ -21,26 +23,28 @@ import "./responsive.css";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <Routes>
-        {/* Páginas públicas */}
-        <Route path="/" element={<Login />} />
-        <Route path="/crear" element={<Sign />} />
+      <AuthProvider>
+        <Routes>
+          
+          <Route path="/" element={<Login />} />
+          <Route path="/crear" element={<Sign />} />
 
-        {/* Páginas que requieren iniciar sesión */}
-        <Route element={<RutaProtegida />}>
-          <Route path="/home" element={<Home />} />
-          <Route path="/horarios" element={<Home />} />
-          <Route path="/buscar" element={<Home />} />
-          <Route path="/socios" element={<Socios />} />
-          <Route path="/socios/:id" element={<Socios />} />
-          <Route path="/agregarsocio" element={<Agregarsocio />} />
-          <Route path="/usuario" element={<User />} />
-          <Route path="/escanear" element={<Escanear />} />
-        </Route>
+        
+          <Route element={<RutaProtegida />}>
+            <Route path="/home" element={<Home />} />
+            <Route path="/horarios" element={<Home />} />
+            <Route path="/buscar" element={<Home />} />
+            <Route path="/socios" element={<Socios />} />
+            <Route path="/socios/:id" element={<Socios />} />
+            <Route path="/agregarsocio" element={<Agregarsocio />} />
+            <Route path="/usuario" element={<User />} />
+            <Route path="/escanear" element={<Escanear />} />
+          </Route>
 
-        {/* Cualquier ruta inexistente */}
-        <Route path="*" element={<Error />} />
-      </Routes>
+         
+          <Route path="*" element={<Error />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>
 );

@@ -1,58 +1,19 @@
 
-import { useEffect, useState } from "react";
-import {
-  Navigate,
-  Outlet,
-  useLocation,
-} from "react-router-dom";
-import { obtenerSesion } from "../database/Api";
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-export default function RutaProtegida() {
-  const [autenticado, setAutenticado] = useState<boolean | null>(
-    null
-  );
+function RutaProtegida() {
+  const { usuario, cargando } = useAuth();
 
-  const location = useLocation();
-
-  useEffect(() => {
-    let activo = true;
-
-    async function verificarSesion() {
-      try {
-        const sesion = await obtenerSesion();
-
-        if (activo) {
-          setAutenticado(sesion.autenticado === true);
-        }
-      } catch (error) {
-        console.error("No se pudo verificar la sesión:", error);
-
-        if (activo) {
-          setAutenticado(false);
-        }
-      }
-    }
-
-    void verificarSesion();
-
-    return () => {
-      activo = false;
-    };
-  }, []);
-
-  if (autenticado === null) {
+  if (cargando) {
     return <p>Verificando sesión...</p>;
   }
 
-  if (!autenticado) {
-    return (
-      <Navigate
-        to="/"
-        replace
-        state={{ from: location }}
-      />
-    );
+  if (!usuario) {
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;
 }
+
+export default RutaProtegida;

@@ -1,6 +1,10 @@
 
 import { storage } from "./Storage";
 
+// ============================================
+// Cliente HTTP
+// ============================================
+
 export async function api<T>(
   endpoint: string,
   options?: RequestInit
@@ -45,15 +49,10 @@ export async function get<T>(endpoint: string): Promise<T> {
   return api<T>(endpoint, { method: "GET" });
 }
 
-// Obtener socios.
-export async function getSocios<T>() {
-  return storage.obtenerDatos<T>(
-    "listaSocios",
-    () => get<T>("/socio")
-  );
-}
+// ============================================
+// Tipos de usuario y autenticación
+// ============================================
 
-// Usuario autenticado.
 export type UsuarioSesion = {
   id: string;
   id_persona?: number;
@@ -65,14 +64,16 @@ export type UsuarioSesion = {
   rol?: string;
   nivel?: number;
   permisos?: Record<string, unknown>;
+
   persona?: {
     id_persona?: number;
-    dni?: string;
-    nombre?: string;
-    apellido?: string;
-    telefono?: string;
-    fecha_nacimiento?: string;
+    dni?: string | null;
+    nombre?: string | null;
+    apellido?: string | null;
+    telefono?: string | null;
+    fecha_nacimiento?: string | null;
   };
+
   sede?: {
     id_sede?: number;
     nombre?: string;
@@ -86,10 +87,13 @@ export type LoginResponse = {
 
 export type SesionResponse = {
   autenticado: boolean;
-  usuario: UsuarioSesion;
+  usuario?: UsuarioSesion | null;
 };
 
-// Iniciar sesión.
+// ============================================
+// Iniciar sesión
+// ============================================
+
 export async function iniciarSesion(
   email: string,
   password: string
@@ -100,21 +104,37 @@ export async function iniciarSesion(
   });
 }
 
-// Verificar la sesión actual.
+// ============================================
+// Recuperar sesión existente
+// ============================================
+
 export async function obtenerSesion(): Promise<SesionResponse> {
   return api<SesionResponse>("/login/auth/me", {
     method: "GET",
   });
 }
 
-// Cerrar sesión.
+// ============================================
+// Cerrar sesión
+// ============================================
+
 export async function cerrarSesion(): Promise<void> {
   await api<{ mensaje: string }>("/login/logout", {
     method: "POST",
   });
 }
 
-// Datos para crear un socio.
+// ============================================
+// Socios
+// ============================================
+
+export async function getSocios<T>(): Promise<T> {
+  return storage.obtenerDatos<T>(
+    "listaSocios",
+    () => get<T>("/socio")
+  );
+}
+
 type SocioData = {
   persona: {
     nombre: string;
@@ -123,11 +143,13 @@ type SocioData = {
     telefono: string;
     fecha_nacimiento: string;
   };
+
   usuario: {
     email: string;
     nombre_usuario: string;
     password: string;
   };
+
   id_plan: number;
 };
 

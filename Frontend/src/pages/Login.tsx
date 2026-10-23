@@ -1,26 +1,32 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+
 import Header from "../components/Header";
 import Main from "../components/Main";
-import { iniciarSesion } from "../database/Api";
+import { useAuth } from "../context/AuthContext";
 
 function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
+  async function handleLogin(
+    e: React.FormEvent<HTMLFormElement>
+  ) {
     e.preventDefault();
     setError("");
     setCargando(true);
 
     try {
-      await iniciarSesion(correo, contrasena);
+      // Inicia sesión y guarda el usuario en AuthContext.
+      await login(correo, contrasena);
 
+      // El usuario ya está disponible para Home.
       navigate("/home", { replace: true });
     } catch (err: unknown) {
       setError(
@@ -39,9 +45,13 @@ function Login() {
 
       <section className="login">
         <div className="listabloques">
-          <form className="bloque espaciado" onSubmit={handleLogin}>
+          <form
+            className="bloque espaciado"
+            onSubmit={handleLogin}
+          >
             <div className="input">
               <label htmlFor="correo">Correo</label>
+
               <input
                 id="correo"
                 className="blanco"
@@ -56,6 +66,7 @@ function Login() {
 
             <div className="input">
               <label htmlFor="contrasena">Contraseña</label>
+
               <input
                 id="contrasena"
                 className="blanco"
@@ -75,7 +86,9 @@ function Login() {
               type="submit"
               disabled={cargando}
             >
-              {cargando ? "Iniciando sesión..." : "Iniciar sesión"}
+              {cargando
+                ? "Iniciando sesión..."
+                : "Iniciar sesión"}
             </button>
 
             <br />

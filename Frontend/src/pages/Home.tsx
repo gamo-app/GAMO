@@ -1,28 +1,49 @@
-import NavBar from "../components/Navbar"
-import Header from "../components/Header"
-
+import { useEffect, useRef } from "react";
+import NavBar from "../components/Navbar";
+import Header from "../components/Header";
 import Main from "../components/Main";
-function Home() {
+import { useAuth } from "../context/AuthContext";
 
- 
+function Home() {
+  const { usuario, cargando } = useAuth();
+  const usuarioRegistrado = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (usuario && usuarioRegistrado.current !== usuario.id) {
+      console.log("Usuario recibido en Home:", usuario);
+      usuarioRegistrado.current = usuario.id;
+    }
+  }, [usuario]);
+
+  if (cargando) {
+    return <p>Cargando usuario...</p>;
+  }
+
+  if (!usuario) {
+    return <p>No se encontró un usuario autenticado.</p>;
+  }
+
   return (
     <Main>
-      
-     <Header/>
+      <Header />
 
-      <section >
-     <div className="listabloques">
-      <div className="listacentro">
-        <img src="proceso.svg" className="proceso" style={{width:"12vh"}} alt="" />
-        <h3>En proceso</h3>
-      </div>
-     </div>
-   
+      <section>
+        <div className="listabloques">
+          <div className="listacentro">
+            <img
+              src="proceso.svg"
+              className="proceso"
+              style={{ width: "12vh" }}
+              alt=""
+            />
+            <h3>En proceso</h3>
+          </div>
+        </div>
       </section>
 
-     <NavBar/>
-   </Main>
+      <NavBar />
+    </Main>
   );
 }
 
-export default Home
+export default Home;
