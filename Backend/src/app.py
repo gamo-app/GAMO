@@ -4,8 +4,6 @@ from Routers import (
     router_asistencia as asistencia,
     router_clase as clase,
     router_deporte as deporte,
-    router_importacion as importacion,
-    router_inscripcion as inscripcion,
     router_pago as pago,
     router_persona as persona,
     router_profesor as profesor,
