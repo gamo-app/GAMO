@@ -12,27 +12,23 @@ import Gestion from './pages/Gestion'
 //import Socios from './pages/Socios'
 import Agregarsocio from './pages/Agregarsocio'
 
-// @ts-expect-error El módulo JSX no tiene declaración de tipos
-import Admin from './pages/admin.jsx'
-// @ts-expect-error El módulo JSX no tiene declaración de tipos
-import Recepcion from './pages/recepcion'
+//import Admin from './pages/admin'
+//import Recepcion from './pages/recepcion'
 import Camcontra from "./pages/Camcontra"
 import './animations.css'
 import './index.css'
 import './responsive.css'
-import Prueba from './pages/Prueba'
-import Layout from "./components/Layout";
+//import Layout from "./components/Layout";
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
 
-        <Route element={<Layout />}>
           <Route path="/*" element={<Error />} />
-          <Route path="/p" element={<Prueba />} />
-        </Route>
-
+  {/* <Route element={<Layout />}>
+          <Route path="/*" element={<Error />} />
+        </Route>*/}
         <Route path="/crear" element={<Sign />} />
         <Route path="/home" element={<Home />} />
         <Route path="/contraseña" element={<Camcontra />} />
@@ -45,8 +41,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/agregar/:tipo" element={<Agregarsocio />} />
         <Route path="/usuario" element={<User />} />
         <Route path="/escanear" element={<Escanear />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/recepcion" element={<Recepcion />} />
+        {/*<Route path="/admin" element={<Admin />} />
+        <Route path="/recepcion" element={<Recepcion />} />*/}
       </Routes>
     </BrowserRouter>
   </StrictMode>
