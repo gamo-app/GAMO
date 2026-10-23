@@ -106,12 +106,13 @@ export async function iniciarSesion(
     body: JSON.stringify(credenciales),
   });
 
-  localStorage.setItem("jwt", respuesta.jwt);
+ const numeroPrueba = "12345";
+
+  localStorage.setItem("jwt", numeroPrueba);
 
   if (window.AndroidApp) {
-    window.AndroidApp.guardarIdUsuario(respuesta.jwt);
+    window.AndroidApp.guardarIdUsuario(numeroPrueba);
   }
-
   return respuesta;
 }
 export function cerrarSesion(): void {
