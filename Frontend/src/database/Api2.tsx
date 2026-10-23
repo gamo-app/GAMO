@@ -111,9 +111,10 @@ export async function iniciarSesion(
 localStorage.setItem("jwt", numeroPrueba);
 
 if (window.AndroidApp) {
-  window.AndroidApp.guardarIdUsuario(numeroPrueba);
+  window.AndroidApp.guardarIdUsuario(
+    numeroPrueba
+  );
 }
-
   return respuesta;
 }
 export function cerrarSesion(): void {
