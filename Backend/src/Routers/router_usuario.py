@@ -54,7 +54,7 @@ async def create_usuario(datos: UsuarioCreate, request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-
+'''
 @router.post("/login")
 async def router_login(login: LoginData, request: Request):
     try:
@@ -63,7 +63,7 @@ async def router_login(login: LoginData, request: Request):
         raise e
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
+'''
 @router.post(
     "/admin",
     status_code=status.HTTP_201_CREATED,
