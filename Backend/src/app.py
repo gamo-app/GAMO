@@ -3,14 +3,12 @@ from contextlib import asynccontextmanager
 from Routers import (
     router_asistencia as asistencia,
     router_clase as clase,
-    router_cuota as cuota,
     router_deporte as deporte,
-    router_grupos_roles as grupos_roles,
-    router_importacion as importacion,
-    router_inscripcion as inscripcion,
+    router_pago as pago,
     router_persona as persona,
     router_profesor as profesor,
     router_representante as representante,
+    router_rol as rol,
     router_sede as sede,
     router_socio as socio,
     router_usuario as usuario,
@@ -37,20 +35,20 @@ app.include_router(clase.router,
                    tags=['clase'],
                    responses={404: {"clase": "Not Found"}})
 
-app.include_router(cuota.router,
-                   prefix='/cuota',
-                   tags=['cuota'],
-                   responses={404: {"cuota": "Not Found"}})
+app.include_router(pago.router,
+                   prefix='/pago',
+                   tags=['pago'],
+                   responses={404: {"pago": "Not Found"}})
 
 app.include_router(deporte.router,
                    prefix='/deporte',
                    tags=['deporte'],
                    responses={404: {"deporte": "Not Found"}})
 
-app.include_router(grupos_roles.router,
-                   prefix='/grupos_roles',
-                   tags=['grupos_roles'],
-                   responses={404: {"grupos_roles": "Not Found"}})
+app.include_router(rol.router,
+                   prefix='/rol',
+                   tags=['rol'],
+                   responses={404: {"rol": "Not Found"}})
 
 # app.include_router(importacion.router,
 #                    prefix='/importacion',
