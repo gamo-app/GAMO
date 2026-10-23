@@ -8,9 +8,11 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 from supabase_config import get_supabase_config, get_supabase
 from workers import fetch
-from Base import base_cuota as cuota
-from model import EstadoDePagoEnum, EstadoDePagoSocioEnum
+from Base import base_pago as pago
+from Base import base_membresia as membresia
+from model import EstadoDePagoSocioEnum
 from postgrest import APIError
+import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -310,17 +312,30 @@ async def actualizar_estado_usuario_general(env, id_persona: int, estado: str):
         "data": resultado,
     }
 
-async def get_estado_pago(env, id_socio : int):
-    vencidas = await cuota.get_cuotas_of_type_by_socio(env, id_socio, EstadoDePagoEnum.vencida)
-    if len(vencidas) != 0:
-        return EstadoDePagoSocioEnum.moroso
 
-    pendientes = await cuota.get_cuotas_of_type_by_socio(env, id_socio, EstadoDePagoEnum.pendiente)
-    if len(pendientes) != 0:
-        return EstadoDePagoSocioEnum.pendiente
+DIAS_PARA_CONSIDERAR_MOROSO = 7
+async def get_estado_pago(env, codigo_credencial : str):
+
+    ultima_membresia = await membresia.get_most_recent_membresia_by_socio(env, codigo_credencial)
+
+    if not ultima_membresia:
+        return "No se encontró ninguna membresia para ese socio"
+
+
+
+    esta_al_dia = await membresia.is_membresia_active(ultima_membresia)
+    if esta_al_dia:
+        return EstadoDePagoSocioEnum.al_dia
+
     
+
+    fecha_fin = datetime.date.strptime(ultima_membresia["fecha_fin"], "%Y-%m-%d")
+
+    dias_desde_fin_de_membresia = (datetime.date.today() - fecha_fin).days
+    if dias_desde_fin_de_membresia > DIAS_PARA_CONSIDERAR_MOROSO:
+        return EstadoDePagoSocioEnum.moroso
     
-    return EstadoDePagoSocioEnum.al_dia
+    return EstadoDePagoSocioEnum.pendiente
 
 async def socio_exists(env, id_socio : int):
     supabase = get_supabase(env)

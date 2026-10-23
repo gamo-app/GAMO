@@ -17,11 +17,11 @@ async def get_socios(request: Request):
     except  HTTPException as e:
         raise HTTPException(400, detail=e.args) 
     
-@router.get("/estado-pago/{id_ususario}")
-async def get_estado_pago(request: Request, id_ususario: int):
+@router.get("/estado-pago/{codigo_credencial}")
+async def get_estado_pago(request: Request, codigo_credencial: str):
     #falta la auth del usuario para saber si tiene permisos 
     try:
-        return await socio.get_estado_pago(request.scope["env"], id_ususario)
+        return await socio.get_estado_pago(request.scope["env"], codigo_credencial)
     except  HTTPException as e:
         raise HTTPException(400, detail=e.args)
 
