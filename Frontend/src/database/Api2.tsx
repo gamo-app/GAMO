@@ -101,7 +101,7 @@ type LoginResponse = {
 export async function iniciarSesion(
   credenciales: Credenciales
 ): Promise<LoginResponse> {
-  const respuesta = await api<LoginResponse>("/login", {
+  const respuesta = await api<LoginResponse>("/usuario/login", {
     method: "POST",
     body: JSON.stringify(credenciales),
   });
