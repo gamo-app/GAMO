@@ -17,15 +17,15 @@ async def get_all_asistencias(env):
         return f'<p>Error ar cargar asistencias: {e.message}</p>'
     return response.data
 
-async def get_historial_asistencia_socio(env, id_socio : int, desde : date | None = None, hasta : date | None = None):
+async def get_historial_asistencia_socio(env, codigo_credencial : int, desde : date | None = None, hasta : date | None = None):
 
-    if not await socio.socio_exists(env, id_socio):
+    if not await socio.socio_exists(env, codigo_credencial):
         raise HTTPException(status_code=404, detail="Socio no encontrado")
     
     supabase = get_supabase(env)
 
 
-    request = supabase.table("asistencia").select("id_asistencia,id_horario,fecha,fecha_hora,clase_horario(dia_semana,hora_inicio,hora_fin,clase(id_clase,nombre,deporte(nombre)))").eq("id_socio", id_socio)
+    request = supabase.table("asistencia").select("*,clase(*)").eq("codigo_credencial", codigo_credencial)
 
     if desde:
         request.gte("fecha", desde.isoformat())

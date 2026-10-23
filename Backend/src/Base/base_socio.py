@@ -337,10 +337,10 @@ async def get_estado_pago(env, codigo_credencial : str):
     
     return EstadoDePagoSocioEnum.pendiente
 
-async def socio_exists(env, id_socio : int):
+async def socio_exists(env, codigo_credencial : str):
     supabase = get_supabase(env)
     try:
-        response = supabase.table("socio").select("*").eq("id_socio", id_socio).execute()
+        response = supabase.table("socio").select("*").eq("codigo_credencial", codigo_credencial).execute()
     except APIError as e:
           return f'<p>Error ar cargar clases: {e.message}</p>'
     

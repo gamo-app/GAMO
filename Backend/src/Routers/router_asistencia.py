@@ -9,15 +9,15 @@ async def get_asistencia(request: Request):
     return await asistencia.get_all_asistencias(request.scope["env"])
 
 
-@router.get("/socio/{id_socio}")
+@router.get("/socio/{codigo_credencial}")
 async def get_historial_asistencia_socio(
     request: Request,
-    id_socio: int,
+    codigo_credencial: str,
     desde: date | None = None,
     hasta: date | None = None,
 ):
 
     
     return await asistencia.get_historial_asistencia_socio(
-        request.scope["env"], id_socio, desde=desde, hasta=hasta
+        request.scope["env"], codigo_credencial, desde=desde, hasta=hasta
     )
