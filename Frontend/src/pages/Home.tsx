@@ -9,9 +9,12 @@ function Home() {
   const usuarioRegistrado = useRef<string | null>(null);
 
   useEffect(() => {
-    if (usuario && usuarioRegistrado.current !== usuario.id) {
+    if (
+      usuario &&
+      usuarioRegistrado.current !== usuario.uuid_usuario
+    ) {
       console.log("Usuario recibido en Home:", usuario);
-      usuarioRegistrado.current = usuario.id;
+      usuarioRegistrado.current = usuario.uuid_usuario;
     }
   }, [usuario]);
 

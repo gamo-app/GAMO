@@ -286,6 +286,7 @@ position:relative;
 position:relative;
   flex-wrap: wrap;
 }
+
 details.azul{
   display:flex;
   flex-direction: column-reverse;
@@ -843,8 +844,6 @@ a.escanear{
   flex-direction: column;
   justify-content: space-between;
 }
-
-
 .texto2{
 max-width: 22vh;
   height: 4vh;

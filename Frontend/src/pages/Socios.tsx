@@ -7,66 +7,52 @@ import { getSocios } from "../database/Api";
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import Icon from "../components/Icon";
-type SocioData = {
-  id_socio: number;
-  id_usuario: string | null;
-  nombre: string;
-  apellido: string;
-  id_sede: number;
-  id_plan: number;
-  fecha_alta: string;
-  estado: string;
-  telefono: string;
-  dni: string;
-};
+import { evaluarMembresia, type SocioListado } from "../database/Socios";
 
 function Socios() {
   const { id } = useParams();
 
-  const [respuesta, setRespuesta] = useState<SocioData[]>([]);
+  const [respuesta, setRespuesta] = useState<SocioListado[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
 
   // Filtros
   const [busqueda, setBusqueda] = useState("");
-  const [sede, setSede] = useState("");
   const [estado, setEstado] = useState("");
 
   useEffect(() => {
-    getSocios<SocioData[]>()
+    getSocios()
       .then((resultado) => {
         setRespuesta(resultado);
       })
       .catch((error) => {
         console.error("Error al cargar socios:", error);
+        setError("No se pudieron cargar los socios. Intentá nuevamente.");
       })
       .finally(() => {
         setCargando(false);
       });
   }, []);
 
-  // Buscar por nombre, apellido, DNI o teléfono
+  // Buscar por nombre, apellido o DNI
   const sociosFiltrados = respuesta.filter((socio) => {
     const texto = busqueda.trim().toLowerCase();
+    const nombre = socio.usuario
+      ? `${socio.usuario.nombre} ${socio.usuario.apellido}`.toLowerCase()
+      : "";
+    const dni = socio.usuario ? String(socio.usuario.DNI) : "";
+    const estadoSocio = evaluarMembresia(socio.membresias).estado;
 
     const coincideBusqueda =
       texto === "" ||
-      `${socio.nombre} ${socio.apellido}`.toLowerCase().includes(texto) ||
-      `${socio.apellido} ${socio.nombre}`.toLowerCase().includes(texto) ||
-      socio.dni.includes(texto) ||
-      socio.telefono.includes(texto);
-
-    const coincideSede =
-      sede === "" || socio.id_sede === Number(sede);
-
-    const estadoSocio = socio.estado.toLowerCase().trim();
+      nombre.includes(texto) ||
+      dni.includes(texto);
 
     const coincideEstado =
       estado === "" ||
-      (estado === "morosos"
-        ? false // Reemplazar cuando tengas el dato real de deuda
-        : estadoSocio === estado);
+      estadoSocio === estado;
 
-    return coincideBusqueda && coincideSede && coincideEstado;
+    return coincideBusqueda && coincideEstado;
   });
 
   if (id) {
@@ -74,9 +60,7 @@ function Socios() {
       return <Main>Cargando socio...</Main>;
     }
 
-    const socio = respuesta.find(
-      (s) => s.id_socio === Number(id)
-    );
+    const socio = respuesta.find((s) => s.codigo_credencial === id);
 
     if (!socio) {
       return <Main>Socio no encontrado</Main>;
@@ -96,45 +80,22 @@ function Socios() {
       <section style={{ padding: "0" }}>
         <div className="listabloques columnafija">
           <div className="bloque persistente estirado">
-             <div className="divisorx espaciado2">
-            <input
+            <div className="divisorx espaciado2">
+              <input
                 type="text"
                 className="blanco"
-                placeholder="Buscar nombre, apellido, DNI o teléfono..."
+                placeholder="Buscar nombre, apellido o DNI..."
                 value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
+                onChange={(event) => setBusqueda(event.target.value)}
               />
               <button className="botoniconoazul">
-                <Icon tipo={3} color={2} ></Icon>
-
+                <Icon tipo={3} color={2} />
                 Buscar
               </button>
             </div>
-            <div className="divisorx espaciado2" >
-             
-              <select  className="blanco" name="" id="">
-<option value="">todos</option>
-              </select>
 
-              <select
-                className="blanco"
-                value={sede}
-                onChange={(e) => setSede(e.target.value)}
-              >
-                <option value="">Todas las sedes</option>
-
-                {Array.from(
-                  new Set(respuesta.map((socio) => socio.id_sede))
-                )
-                  .sort((a, b) => a - b)
-                  .map((idSede) => (
-                    <option key={idSede} value={idSede}>
-                      Sede {idSede}
-                    </option>
-                  ))}
-              </select>
-
-               <Link to="/agregarsocio" className="azul pc">
+            <div className="divisorx espaciado2">
+              <Link to="/agregarsocio" className="azul pc">
                 Agregar nuevo socio
               </Link>
             </div>
@@ -143,9 +104,10 @@ function Socios() {
               <div className="contenidolista">
                 {[
                   { texto: "Todos", valor: "" },
-                  { texto: "Morosos", valor: "morosos" },
+                  { texto: "Pendientes", valor: "pendiente" },
                   { texto: "Inactivos", valor: "inactivo" },
                   { texto: "Activos", valor: "activo" },
+                  { texto: "Sin membresía", valor: "sin_membresia" },
                 ].map((filtro) => (
                   <button
                     key={filtro.texto}
@@ -171,6 +133,10 @@ function Socios() {
                 <Socio carga={true} />
                 <Socio carga={true} />
               </>
+            ) : error ? (
+              <div className="listay" role="alert">
+                <p>{error}</p>
+              </div>
             ) : respuesta.length === 0 ? (
               <div className="listay">
                 <p>No hay socios registrados.</p>
@@ -182,7 +148,7 @@ function Socios() {
             ) : (
               sociosFiltrados.map((socio) => (
                 <Socio
-                  key={socio.id_socio}
+                  key={socio.codigo_credencial}
                   socio={socio}
                   carga={false}
                 />

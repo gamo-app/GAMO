@@ -61,7 +61,7 @@ section.centro .listabloques{
   display: none !important;
 }
 }
-@media (max-width: 150vh){
+@media (max-width: 767px){
     ::-webkit-scrollbar {
   display: none;
 }

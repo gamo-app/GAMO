@@ -1,5 +1,6 @@
 
 import { storage } from "./Storage";
+import type { PlanSocio, SocioListado } from "./Socios";
 
 // ============================================
 // Cliente HTTP
@@ -54,40 +55,29 @@ export async function get<T>(endpoint: string): Promise<T> {
 // ============================================
 
 export type UsuarioSesion = {
-  id: string;
-  id_persona?: number;
-  id_sede?: number;
-  id_grupo?: number;
-  email: string;
-  nombre_usuario?: string;
-  estado?: string;
-  rol?: string;
-  nivel?: number;
-  permisos?: Record<string, unknown>;
-
-  persona?: {
-    id_persona?: number;
-    dni?: string | null;
-    nombre?: string | null;
-    apellido?: string | null;
-    telefono?: string | null;
-    fecha_nacimiento?: string | null;
-  };
-
-  sede?: {
-    id_sede?: number;
-    nombre?: string;
-  };
+  uuid_usuario: string;
+  DNI: number;
+  nombre: string;
+  apellido: string;
+  fecha_nacimiento: string;
+  rol: {
+    id_rol: number;
+    nombre: string;
+    permisos: Record<string, boolean>;
+  } | null;
+  email: string | null;
 };
 
 export type LoginResponse = {
   mensaje: string;
-  usuario: UsuarioSesion;
+  usuario: {
+    id: string;
+    email: string | null;
+  };
 };
 
 export type SesionResponse = {
-  autenticado: boolean;
-  usuario?: UsuarioSesion | null;
+  usuario: UsuarioSesion;
 };
 
 // ============================================
@@ -128,36 +118,63 @@ export async function cerrarSesion(): Promise<void> {
 // Socios
 // ============================================
 
-export async function getSocios<T>(): Promise<T> {
-  return storage.obtenerDatos<T>(
-    "listaSocios",
-    () => get<T>("/socio")
+export async function getSocios(): Promise<SocioListado[]> {
+  return storage.obtenerDatos<SocioListado[]>(
+    "listaSocios-v2",
+    () => get<SocioListado[]>("/socio")
   );
 }
 
-type SocioData = {
-  persona: {
+export async function getPlanes(): Promise<PlanSocio[]> {
+  return get<PlanSocio[]>("/socio/planes");
+}
+
+export type CrearSocioRequest = {
+  id_plan: number;
+  fecha_inicio: string;
+  fecha_fin: string;
+  usuario: {
     nombre: string;
     apellido: string;
-    dni: string;
-    telefono: string;
     fecha_nacimiento: string;
-  };
-
-  usuario: {
+    DNI: number;
     email: string;
-    nombre_usuario: string;
     password: string;
   };
-
-  id_plan: number;
 };
 
-export async function setSocio<T>(
-  socio: SocioData
-): Promise<T> {
-  return api<T>("/socio", {
+export type CrearSocioResponse = {
+  mensaje: string;
+  usuario: {
+    uuid_usuario: string;
+    DNI: number;
+    nombre: string;
+    apellido: string;
+    fecha_nacimiento: string;
+    id_rol: number;
+    email: string;
+  };
+  socio: {
+    codigo_credencial: string;
+    uuid_usuario: string;
+  };
+  membresia: {
+    id_membresia: number;
+    codigo_credencial: string;
+    id_plan: number;
+    fecha_inicio: string;
+    fecha_fin: string;
+  };
+};
+
+export async function setSocio(
+  socio: CrearSocioRequest
+): Promise<CrearSocioResponse> {
+  const respuesta = await api<CrearSocioResponse>("/socio", {
     method: "POST",
     body: JSON.stringify(socio),
   });
+
+  storage.invalidar("listaSocios-v2");
+  return respuesta;
 }

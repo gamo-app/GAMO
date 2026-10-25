@@ -42,11 +42,7 @@ export function AuthProvider({
         const sesion = await obtenerSesion();
 
         if (activo) {
-          setUsuario(
-            sesion.autenticado && sesion.usuario
-              ? sesion.usuario
-              : null
-          );
+          setUsuario(sesion.usuario);
         }
       } catch {
         if (activo) {
@@ -66,11 +62,11 @@ export function AuthProvider({
     };
   }, []);
 
-  // El login ya devuelve el objeto completo del usuario.
+  // El login crea las cookies; /auth/me devuelve el perfil completo.
   async function login(email: string, password: string) {
-    const respuesta = await iniciarSesion(email, password);
-
-    setUsuario(respuesta.usuario);
+    await iniciarSesion(email, password);
+    const sesion = await obtenerSesion();
+    setUsuario(sesion.usuario);
   }
 
   // Invalidar la sesión en el backend y limpiar el estado.
