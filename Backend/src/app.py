@@ -6,6 +6,7 @@ from Routers import (
     router_deporte as deporte,
     router_profesor as profesor,
     router_representante as representante,
+    router_rol as rol,
     router_sede as sede,
     router_socio as socio,
     router_usuario as usuario,

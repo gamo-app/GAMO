@@ -1,7 +1,6 @@
-import { useState } from "react";
 import type { ReactNode } from "react";
-import { storage } from "../database/Storage";
 import { useLocation } from "react-router-dom";
+import { storage } from "../database/Storage";
 
 interface MainProps {
   children: ReactNode;
@@ -9,27 +8,19 @@ interface MainProps {
 
 function Main({ children }: MainProps) {
   const location = useLocation();
+  const modoOscuro = storage.get<boolean>("modoOscuro") ?? false;
 
-  if (!storage.exist("modoOscuro")) {
-    storage.set("modoOscuro", false);
-  }
+  const esLogin =
+    location.pathname === "/" || location.pathname === "/crear";
 
-  const [modoOscuro] = useState(
-    storage.get<boolean>("modoOscuro") ?? false
-  );
+  const clases = [
+    esLogin ? "login" : "",
+    modoOscuro ? "dark" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  return (
-    <main
-      className={
-        (modoOscuro ? "dark" : "") +
-        (location.pathname === "/" || location.pathname === "/crear"
-          ? " login"
-          : "")
-      }
-    >
-      {children}
-    </main>
-  );
+  return <main className={clases}>{children}</main>;
 }
 
 export default Main;

@@ -1,37 +1,50 @@
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import Header from "../components/Header";
 import Main from "../components/Main";
 import { useAuth } from "../context/AuthContext";
+import { storage } from "../database/Storage";
+import Presentacion from "./Presentacion";
 
 function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
-
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
+  const [mostrarPresentacion, setMostrarPresentacion] = useState(
+    !storage.exist("presentacionVista")
+  );
+
+  useEffect(() => {
+    if (!mostrarPresentacion) {
+      return;
+    }
+
+    storage.set("presentacionVista", true);
+    const timer = window.setTimeout(() => {
+      setMostrarPresentacion(false);
+    }, 2500);
+
+    return () => window.clearTimeout(timer);
+  }, [mostrarPresentacion]);
 
   async function handleLogin(
-    e: React.FormEvent<HTMLFormElement>
+    event: React.FormEvent<HTMLFormElement>
   ) {
-    e.preventDefault();
+    event.preventDefault();
     setError("");
     setCargando(true);
 
     try {
-      // Inicia sesión y guarda el usuario en AuthContext.
       await login(correo, contrasena);
-
-      // El usuario ya está disponible para Home.
       navigate("/home", { replace: true });
-    } catch (err: unknown) {
+    } catch (error: unknown) {
       setError(
-        err instanceof Error
-          ? err.message
+        error instanceof Error
+          ? error.message
           : "No se pudo iniciar sesión."
       );
     } finally {
@@ -41,17 +54,14 @@ function Login() {
 
   return (
     <Main>
-      <Header />
+      {mostrarPresentacion && <Presentacion />}
+      <Header login />
 
       <section className="login">
         <div className="listabloques">
-          <form
-            className="bloque espaciado"
-            onSubmit={handleLogin}
-          >
+          <form className="bloque espaciado" onSubmit={handleLogin}>
             <div className="input">
               <label htmlFor="correo">Correo</label>
-
               <input
                 id="correo"
                 className="blanco"
@@ -59,14 +69,13 @@ function Login() {
                 autoComplete="email"
                 placeholder="Correo@mail.com"
                 value={correo}
-                onChange={(e) => setCorreo(e.target.value)}
+                onChange={(event) => setCorreo(event.target.value)}
                 required
               />
             </div>
 
             <div className="input">
               <label htmlFor="contrasena">Contraseña</label>
-
               <input
                 id="contrasena"
                 className="blanco"
@@ -74,7 +83,7 @@ function Login() {
                 autoComplete="current-password"
                 placeholder="-----"
                 value={contrasena}
-                onChange={(e) => setContrasena(e.target.value)}
+                onChange={(event) => setContrasena(event.target.value)}
                 required
               />
             </div>
@@ -86,22 +95,14 @@ function Login() {
               type="submit"
               disabled={cargando}
             >
-              {cargando
-                ? "Iniciando sesión..."
-                : "Iniciar sesión"}
+              {cargando ? "Iniciando sesión..." : "Iniciar sesión"}
             </button>
 
             <br />
-
             <h4>¿No tiene una cuenta?</h4>
-
             <Link to="/crear" className="blanco">
               Crear cuenta
             </Link>
-
-            <button className="blanco" type="button">
-              Iniciar sesión con Google
-            </button>
           </form>
         </div>
       </section>

@@ -1,4 +1,10 @@
 from fastapi import HTTPException
+from supabase import create_client, Client
+
+def get_supabase(env) -> Client:
+    url = getattr(env, "SUPABASE_URL", None)
+    key = getattr(env, "SUPABASE_KEY", None)
+    return  create_client(url, key)
 
 
 def get_supabase_config(env):
@@ -10,4 +16,8 @@ def get_supabase_config(env):
             detail="Faltan SUPABASE_URL o SUPABASE_KEY en la configuración del Worker.",
         )
 
-    return url.rstrip("/"), key
+    url = url.strip().rstrip("/")
+    if url.endswith("/rest/v1"):
+        url = url[: -len("/rest/v1")]
+
+    return url, key.strip()

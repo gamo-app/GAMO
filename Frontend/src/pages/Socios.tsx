@@ -1,66 +1,80 @@
-import NavBar from "../components/Navbar";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+
 import Header from "../components/Header";
-import Socio from "../components/Socio";
-import Main from "../components/Main";
-import Socioparticular from "./Socioparticular";
-import { getSocios } from "../database/Api";
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
 import Icon from "../components/Icon";
-import { evaluarMembresia, type SocioListado } from "../database/Socios";
+import Main from "../components/Main";
+import NavBar from "../components/Navbar";
+import Socio from "../components/Socio";
+import { getSocios } from "../database/Api";
+import {
+  evaluarMembresia,
+  type EstadoSocio,
+  type SocioListado,
+} from "../database/Socios";
+import Socioparticular from "./Socioparticular";
 
 function Socios() {
   const { id } = useParams();
-
   const [respuesta, setRespuesta] = useState<SocioListado[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
-
-  // Filtros
   const [busqueda, setBusqueda] = useState("");
-  const [estado, setEstado] = useState("");
+  const [busquedaAplicada, setBusquedaAplicada] = useState("");
+  const [estado, setEstado] = useState<EstadoSocio | "">("");
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(true);
 
   useEffect(() => {
+    let activo = true;
+
     getSocios()
       .then((resultado) => {
-        setRespuesta(resultado);
+        if (activo) {
+          setRespuesta(resultado);
+        }
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error("Error al cargar socios:", error);
-        setError("No se pudieron cargar los socios. Intentá nuevamente.");
+        if (activo) {
+          setError("No se pudieron cargar los socios. Intentá nuevamente.");
+        }
       })
       .finally(() => {
-        setCargando(false);
+        if (activo) {
+          setCargando(false);
+        }
       });
+
+    return () => {
+      activo = false;
+    };
   }, []);
 
-  // Buscar por nombre, apellido o DNI
-  const sociosFiltrados = respuesta.filter((socio) => {
-    const texto = busqueda.trim().toLowerCase();
-    const nombre = socio.usuario
-      ? `${socio.usuario.nombre} ${socio.usuario.apellido}`.toLowerCase()
-      : "";
-    const dni = socio.usuario ? String(socio.usuario.DNI) : "";
-    const estadoSocio = evaluarMembresia(socio.membresias).estado;
+  const sociosFiltrados = useMemo(() => {
+    const texto = busquedaAplicada.toLocaleLowerCase();
 
-    const coincideBusqueda =
-      texto === "" ||
-      nombre.includes(texto) ||
-      dni.includes(texto);
+    return respuesta.filter((socio) => {
+      const nombre = socio.usuario
+        ? `${socio.usuario.nombre} ${socio.usuario.apellido}`.toLocaleLowerCase()
+        : "";
+      const dni = socio.usuario ? String(socio.usuario.DNI) : "";
+      const estadoSocio = evaluarMembresia(socio.membresias).estado;
+      const coincideBusqueda =
+        texto.length === 0 || nombre.includes(texto) || dni.includes(texto);
+      const coincideEstado = estado === "" || estadoSocio === estado;
 
-    const coincideEstado =
-      estado === "" ||
-      estadoSocio === estado;
-
-    return coincideBusqueda && coincideEstado;
-  });
+      return coincideBusqueda && coincideEstado;
+    });
+  }, [respuesta, busquedaAplicada, estado]);
 
   if (id) {
     if (cargando) {
       return <Main>Cargando socio...</Main>;
     }
 
-    const socio = respuesta.find((s) => s.codigo_credencial === id);
+    const socio = respuesta.find(
+      (item) => item.codigo_credencial === id
+    );
 
     if (!socio) {
       return <Main>Socio no encontrado</Main>;
@@ -69,97 +83,99 @@ function Socios() {
     return <Socioparticular socio={socio} />;
   }
 
-  const cambiarEstado = (nuevoEstado: string) => {
-    setEstado(nuevoEstado);
-  };
+  function buscar(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusquedaAplicada(busqueda.trim());
+  }
 
   return (
     <Main>
       <Header />
 
-      <section style={{ padding: "0" }}>
+      <section style={{ padding: 0 }}>
         <div className="listabloques columnafija">
-          <div className="bloque persistente estirado">
-            <div className="divisorx espaciado2">
+          <details
+            className="bloque persistente estirado"
+            open={filtrosAbiertos}
+            onToggle={(event) =>
+              setFiltrosAbiertos(event.currentTarget.open)
+            }
+          >
+            <form onSubmit={buscar} className="divisorx2 espaciado2">
               <input
-                type="text"
+                type="search"
                 className="blanco"
                 placeholder="Buscar nombre, apellido o DNI..."
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
               />
-              <button className="botoniconoazul">
-                <Icon tipo={3} color={2} />
-                Buscar
+              <button
+                type="submit"
+                className="azul buscar"
+                aria-label="Buscar socios"
+                disabled={cargando}
+              >
+                <Icon tipo={3} tamaño={1.8} color={2} />
               </button>
+            </form>
+
+            <div className="divisorxy espaciado2">
+              <select
+                className="blanco"
+                aria-label="Filtrar socios por estado de membresía"
+                value={estado}
+                onChange={(event) =>
+                  setEstado(event.target.value as EstadoSocio | "")
+                }
+              >
+                <option value="">Todos los estados</option>
+                <option value="activo">Activos</option>
+                <option value="pendiente">Pendientes</option>
+                <option value="inactivo">Inactivos</option>
+                <option value="sin_membresia">Sin membresía</option>
+              </select>
             </div>
 
-            <div className="divisorx espaciado2">
-              <Link to="/agregarsocio" className="azul pc">
-                Agregar nuevo socio
-              </Link>
-            </div>
-
-            <div className="listax overflow">
-              <div className="contenidolista">
-                {[
-                  { texto: "Todos", valor: "" },
-                  { texto: "Pendientes", valor: "pendiente" },
-                  { texto: "Inactivos", valor: "inactivo" },
-                  { texto: "Activos", valor: "activo" },
-                  { texto: "Sin membresía", valor: "sin_membresia" },
-                ].map((filtro) => (
-                  <button
-                    key={filtro.texto}
-                    type="button"
-                    className={`${
-                      estado === filtro.valor ? "azul" : "blanco"
-                    } miniboton`}
-                    onClick={() => cambiarEstado(filtro.valor)}
-                  >
-                    {filtro.texto}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+            <summary>
+              {filtrosAbiertos ? "Cerrar filtros" : "Abrir filtros"}
+            </summary>
+          </details>
 
           <div className="bloque estirado">
-            {cargando ? (
-              <>
-                <Socio carga={true} />
-                <Socio carga={true} />
-                <Socio carga={true} />
-                <Socio carga={true} />
-                <Socio carga={true} />
-              </>
-            ) : error ? (
-              <div className="listay" role="alert">
-                <p>{error}</p>
-              </div>
-            ) : respuesta.length === 0 ? (
-              <div className="listay">
+            <div className="listay3">
+              <Link to="/agregarsocio" className="rectangulo">
+                <div className="divisorx">
+                  <div className="cuadrado iconoestado5" aria-hidden="true">
+                    +
+                  </div>
+                  <div className="texto3">
+                    <p>Agregar nuevo socio</p>
+                  </div>
+                </div>
+              </Link>
+
+              {cargando ? (
+                <>
+                  <Socio carga />
+                  <Socio carga />
+                  <Socio carga />
+                  <Socio carga />
+                </>
+              ) : error ? (
+                <p role="alert">{error}</p>
+              ) : respuesta.length === 0 ? (
                 <p>No hay socios registrados.</p>
-              </div>
-            ) : sociosFiltrados.length === 0 ? (
-              <div className="listay">
+              ) : sociosFiltrados.length === 0 ? (
                 <p>No se encontraron socios con esos filtros.</p>
-              </div>
-            ) : (
-              sociosFiltrados.map((socio) => (
-                <Socio
-                  key={socio.codigo_credencial}
-                  socio={socio}
-                  carga={false}
-                />
-              ))
-            )}
-
-            <br />
-
-            <Link to="/agregarsocio" className="azul mobile">
-              Agregar nuevo socio
-            </Link>
+              ) : (
+                sociosFiltrados.map((socio) => (
+                  <Socio
+                    key={socio.codigo_credencial}
+                    socio={socio}
+                  />
+                ))
+              )}
+            </div>
           </div>
         </div>
       </section>

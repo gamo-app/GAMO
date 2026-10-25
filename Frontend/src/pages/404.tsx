@@ -1,14 +1,13 @@
 import Icon from "../components/Icon";
-import {  useNavigate } from "react-router-dom";
 import Main from "../components/Main";
+import {  useNavigate } from "react-router-dom";
 function Error() {
   const navigate = useNavigate();
   
   return (
-    <Main>
       
-
-      <section className="centro">
+<Main>
+<section className="centro">
      <div className="listabloques">
         <Icon tipo={12} tamaño={10}></Icon>
         <h1>404</h1>
@@ -19,8 +18,9 @@ function Error() {
      </div>
    
       </section>
+</Main>
+      
 
-   </Main>
   );
 }
 

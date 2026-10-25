@@ -1,5 +1,6 @@
-import Icon from "./Icon";
 import { Link } from "react-router-dom";
+
+import Icon from "./Icon";
 import { evaluarMembresia, type SocioListado } from "../database/Socios";
 
 type SocioProps = {
@@ -7,16 +8,20 @@ type SocioProps = {
   carga?: boolean;
 };
 
-function Socio({
-  socio,
-  carga = false,
-}: SocioProps) {
+function Socio({ socio, carga = false }: SocioProps) {
   const nombre = socio?.usuario
     ? `${socio.usuario.nombre} ${socio.usuario.apellido}`
     : "Usuario no disponible";
   const { estado, membresia } = socio
     ? evaluarMembresia(socio.membresias)
     : { estado: null, membresia: null };
+
+  const estadoClase = {
+    activo: "iconoestado1",
+    pendiente: "iconoestado0",
+    inactivo: "iconoestado2",
+    sin_membresia: "iconoestado4",
+  }[estado ?? "sin_membresia"];
 
   return (
     <article
@@ -25,62 +30,40 @@ function Socio({
       } ${carga ? "cargando" : ""}`}
     >
       <div className="divisorx">
-        {/* Foto */}
-        <div
-          className={`cuadrado ${
-            estado === "activo" ? "iconoestado4" : "iconoestado2"
-          } iconoperfil`}
-        >
+        <div className={`cuadrado ${estadoClase} iconoperfil`}>
           <Icon
             tipo={2}
-            color={estado === "activo" ? 0 : 4}
+            color={estado === "inactivo" ? 4 : 0}
             tamaño={3.6}
           />
         </div>
 
-        {/* Nombre y sede */}
         <div className="texto2">
-          <h4>{nombre}</h4>
-          <div className="divisorx2">
-            <Icon tipo={14} color={0} tamaño={1.3} />
-            <p>{socio?.codigo_credencial}</p>
+          <h4>
+            {socio ? (
+              <Link
+                to={`/socios/${socio.codigo_credencial}`}
+                style={{ color: "inherit" }}
+              >
+                {nombre}
+              </Link>
+            ) : (
+              nombre
+            )}
+          </h4>
+          <div className="divisorx3">
+            <p>{membresia?.plan?.nombre ?? "Sin membresía"}</p>
+            <p aria-hidden="true">·</p>
+            <p>{estado?.replace("_", " ") ?? "Sin membresía"}</p>
           </div>
-        </div>
-
-        <div className="barra pc" />
-
-        <div className="texto2 pc">
-          <h4>Inicio de membresía</h4>
-          <p>{membresia?.fecha_inicio ?? "-"}</p>
-        </div>
-
-        <div className="barra pc" />
-
-        <div className="texto2 pc">
-          <h4>DNI</h4>
-          <p>{socio?.usuario?.DNI ?? "-"}</p>
-        </div>
-
-        <div className="barra pc" />
-
-        <div className="texto2 pc">
-          <h4>Plan</h4>
-          <p>{membresia?.plan?.nombre ?? "-"}</p>
-        </div>
-
-        <div className="barra pc" />
-
-        <div className="texto2 pc">
-          <h4>Estado</h4>
-          <p>{estado?.replace("_", " ") ?? "-"}</p>
         </div>
       </div>
 
-      {/* Acceso al detalle en móvil */}
       {socio && (
         <Link
-          className="botoncuadrado mobile"
+          className="botoncuadrado"
           to={`/socios/${socio.codigo_credencial}`}
+          aria-label={`Ver detalles de ${nombre}`}
         >
           <Icon tipo={13} tamaño={3} />
         </Link>

@@ -1,14 +1,17 @@
 import Icon from "../components/Icon";
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 function NavBar() {
-  let rol = "Admin"
+  const { usuario } = useAuth();
+  const esSocio = usuario?.rol?.nombre.toLocaleLowerCase() === "socio";
+
   return (
     <footer>
       <NavLink to="/home" className="icono">
         {({ isActive }) => (
           <>
-            <Icon tipo={0} color={isActive ? 1 : 0} />
+            <Icon tipo={0} tamaño={3}  color={isActive ? 1 : 0} />
             Home
           </>
         )}
@@ -17,39 +20,40 @@ function NavBar() {
       <NavLink to="/horarios" className="icono">
         {({ isActive }) => (
           <>
-            <Icon tipo={1} color={isActive ? 1 : 0} />
+            <Icon tipo={1} tamaño={3}  color={isActive ? 1 : 0} />
             Horarios
           </>
         )}
       </NavLink>
 
       <NavLink to="/escanear" className="escanear">
-        <Icon tipo={4} color={2} tamaño={2.5} />
+        <Icon tipo={4} color={2} tamaño={3} />
       </NavLink>
 
-     {rol != "socio" ? <NavLink to="/socios" className="icono">
+      {esSocio ? (
+        <NavLink to="/buscar" className="icono">
         {({ isActive }) => (
           <>
-            <Icon tipo={11} color={isActive ? 1 : 0} />
-            Socios
-          </>
-        )}
-      </NavLink>
-      : (
-         <NavLink to="/buscar" className="icono">
-        {({ isActive }) => (
-          <>
-            <Icon tipo={3} color={isActive ? 1 : 0} />
+            <Icon tipo={3} tamaño={3}  color={isActive ? 1 : 0} />
             Buscar
           </>
         )}
       </NavLink>
+      ) : (
+        <NavLink to="/gestion" className="icono">
+          {({ isActive }) => (
+            <>
+              <Icon tipo={11} tamaño={3} color={isActive ? 1 : 0} />
+              Gestión
+            </>
+          )}
+        </NavLink>
       )}
 
       <NavLink to="/usuario" className="icono">
         {({ isActive }) => (
           <>
-            <Icon tipo={2} color={isActive ? 1 : 0} />
+            <Icon tipo={2} tamaño={3} color={isActive ? 1 : 0} />
             Usuario
           </>
         )}

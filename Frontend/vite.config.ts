@@ -11,7 +11,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/socio': {
+      '^/socio(?:/|$)': {
         target: 'http://localhost:8787',
         changeOrigin: true,
         secure: false,

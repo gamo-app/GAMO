@@ -1,16 +1,30 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
-import NavBar from "../components/Navbar";
 import Icon from "../components/Icon";
 import Main from "../components/Main";
-import { Link, useNavigate } from "react-router-dom";
+import NavBar from "../components/Navbar";
 import { getPlanes, setSocio } from "../database/Api";
 import type { PlanSocio } from "../database/Socios";
-import { useEffect, useState } from "react";
+
+type FormularioSocio = {
+  nombre: string;
+  apellido: string;
+  dni: string;
+  fecha_nacimiento: string;
+  email: string;
+  password: string;
+  id_plan: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+};
 
 function Agregarsocio() {
   const navigate = useNavigate();
+  const { tipo = "socio" } = useParams();
+  const esAltaSocio = tipo === "socio";
 
-  const [formulario, setFormulario] = useState({
+  const [formulario, setFormulario] = useState<FormularioSocio>({
     nombre: "",
     apellido: "",
     dni: "",
@@ -21,7 +35,6 @@ function Agregarsocio() {
     fecha_inicio: "",
     fecha_fin: "",
   });
-
   const [planes, setPlanes] = useState<PlanSocio[]>([]);
   const [cargandoPlanes, setCargandoPlanes] = useState(true);
   const [cargando, setCargando] = useState(false);
@@ -29,6 +42,12 @@ function Agregarsocio() {
 
   useEffect(() => {
     let activo = true;
+
+    if (!esAltaSocio) {
+      return () => {
+        activo = false;
+      };
+    }
 
     getPlanes()
       .then((resultado) => {
@@ -55,32 +74,28 @@ function Agregarsocio() {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [esAltaSocio]);
 
   function cambiar(
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) {
-    const { name, value } = e.target;
-
-    setFormulario((anterior) => ({
-      ...anterior,
-      [name]: value,
-    }));
+    const { name, value } = event.target;
+    setFormulario((anterior) => ({ ...anterior, [name]: value }));
   }
 
-  async function crearSocio(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function crearSocio(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setCargando(true);
     setError("");
 
     try {
       await setSocio({
         usuario: {
-          nombre: formulario.nombre,
-          apellido: formulario.apellido,
+          nombre: formulario.nombre.trim(),
+          apellido: formulario.apellido.trim(),
           fecha_nacimiento: formulario.fecha_nacimiento,
           DNI: Number(formulario.dni),
-          email: formulario.email,
+          email: formulario.email.trim(),
           password: formulario.password,
         },
         id_plan: Number(formulario.id_plan),
@@ -104,159 +119,166 @@ function Agregarsocio() {
   return (
     <Main>
       <header className="h2">
-        <h1>Agregar socio</h1>
-
-        <Link to="/socios" className="circuloazul2">
+        <h1>{esAltaSocio ? "Agregar socio" : "Alta no disponible"}</h1>
+        <Link to="/socios" className="circuloazul2" aria-label="Volver">
           <Icon tipo={18} tamaño={2} />
         </Link>
       </header>
 
       <section>
         <div className="listabloques">
-          <br />
-
           <div className="bloque4">
-            <form onSubmit={crearSocio} className="listay2">
-              <label htmlFor="nombre">Nombre</label>
-              <input
-                className="blanco"
-                id="nombre"
-                name="nombre"
-                type="text"
-                placeholder="Nombre del socio"
-                value={formulario.nombre}
-                onChange={cambiar}
-                required
-              />
+            {esAltaSocio ? (
+              <form onSubmit={crearSocio} className="listay2">
+                <label htmlFor="nombre">Nombre</label>
+                <input
+                  className="blanco"
+                  id="nombre"
+                  name="nombre"
+                  type="text"
+                  autoComplete="given-name"
+                  value={formulario.nombre}
+                  onChange={cambiar}
+                  required
+                />
 
-              <label htmlFor="apellido">Apellido</label>
-              <input
-                className="blanco"
-                id="apellido"
-                name="apellido"
-                type="text"
-                placeholder="Apellido del socio"
-                value={formulario.apellido}
-                onChange={cambiar}
-                required
-              />
+                <label htmlFor="apellido">Apellido</label>
+                <input
+                  className="blanco"
+                  id="apellido"
+                  name="apellido"
+                  type="text"
+                  autoComplete="family-name"
+                  value={formulario.apellido}
+                  onChange={cambiar}
+                  required
+                />
 
-              <label htmlFor="dni">DNI</label>
-              <input
-                className="blanco"
-                id="dni"
-                name="dni"
-                type="number"
-                min="1"
-                step="1"
-                inputMode="numeric"
-                placeholder="Número de DNI"
-                value={formulario.dni}
-                onChange={cambiar}
-                required
-              />
+                <label htmlFor="dni">DNI</label>
+                <input
+                  className="blanco"
+                  id="dni"
+                  name="dni"
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputMode="numeric"
+                  value={formulario.dni}
+                  onChange={cambiar}
+                  required
+                />
 
-              <label htmlFor="fecha_nacimiento">
-                Fecha de nacimiento
-              </label>
-              <input
-                className="blanco"
-                id="fecha_nacimiento"
-                name="fecha_nacimiento"
-                type="date"
-                value={formulario.fecha_nacimiento}
-                onChange={cambiar}
-                required
-              />
+                <label htmlFor="fecha_nacimiento">
+                  Fecha de nacimiento
+                </label>
+                <input
+                  className="blanco"
+                  id="fecha_nacimiento"
+                  name="fecha_nacimiento"
+                  type="date"
+                  value={formulario.fecha_nacimiento}
+                  onChange={cambiar}
+                  required
+                />
 
-              <label htmlFor="email">Correo electrónico</label>
-              <input
-                className="blanco"
-                id="email"
-                name="email"
-                type="email"
-                placeholder="Correo electrónico"
-                value={formulario.email}
-                onChange={cambiar}
-                required
-              />
+                <label htmlFor="email">Correo electrónico</label>
+                <input
+                  className="blanco"
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  value={formulario.email}
+                  onChange={cambiar}
+                  required
+                />
 
-              <label htmlFor="password">Contraseña</label>
-              <input
-                className="blanco"
-                id="password"
-                name="password"
-                type="password"
-                placeholder="Contraseña"
-                autoComplete="new-password"
-                value={formulario.password}
-                onChange={cambiar}
-                required
-              />
+                <label htmlFor="password">Contraseña</label>
+                <input
+                  className="blanco"
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  value={formulario.password}
+                  onChange={cambiar}
+                  required
+                />
 
-              <label htmlFor="id_plan">Plan</label>
-              <select
-                className="blanco"
-                id="id_plan"
-                name="id_plan"
-                value={formulario.id_plan}
-                onChange={cambiar}
-                required
-                disabled={cargandoPlanes || planes.length === 0}
-              >
-                <option value="">
-                  {cargandoPlanes
-                    ? "Cargando planes..."
-                    : planes.length === 0
-                      ? "No hay planes disponibles"
-                      : "Seleccionar plan"}
-                </option>
-                {planes.map((plan) => (
-                  <option key={plan.id_plan} value={plan.id_plan}>
-                    {plan.nombre} — ${plan.precio_semanal} por semana (
-                    {plan.clases_semanales} clases)
+                <label htmlFor="id_plan">Plan</label>
+                <select
+                  className="blanco"
+                  id="id_plan"
+                  name="id_plan"
+                  value={formulario.id_plan}
+                  onChange={cambiar}
+                  disabled={cargandoPlanes || planes.length === 0}
+                  required
+                >
+                  <option value="">
+                    {cargandoPlanes
+                      ? "Cargando planes..."
+                      : planes.length
+                        ? "Seleccionar plan"
+                        : "No hay planes disponibles"}
                   </option>
-                ))}
-              </select>
+                  {planes.map((plan) => (
+                    <option key={plan.id_plan} value={plan.id_plan}>
+                      {plan.nombre} — ${plan.precio_semanal} por semana (
+                      {plan.clases_semanales} clases)
+                    </option>
+                  ))}
+                </select>
 
-              <label htmlFor="fecha_inicio">Inicio de membresía</label>
-              <input
-                className="blanco"
-                id="fecha_inicio"
-                name="fecha_inicio"
-                type="date"
-                value={formulario.fecha_inicio}
-                max={formulario.fecha_fin || undefined}
-                onChange={cambiar}
-                required
-              />
+                <label htmlFor="fecha_inicio">Inicio de membresía</label>
+                <input
+                  className="blanco"
+                  id="fecha_inicio"
+                  name="fecha_inicio"
+                  type="date"
+                  value={formulario.fecha_inicio}
+                  max={formulario.fecha_fin || undefined}
+                  onChange={cambiar}
+                  required
+                />
 
-              <label htmlFor="fecha_fin">Fin de membresía</label>
-              <input
-                className="blanco"
-                id="fecha_fin"
-                name="fecha_fin"
-                type="date"
-                value={formulario.fecha_fin}
-                min={formulario.fecha_inicio || undefined}
-                onChange={cambiar}
-                required
-              />
+                <label htmlFor="fecha_fin">Fin de membresía</label>
+                <input
+                  className="blanco"
+                  id="fecha_fin"
+                  name="fecha_fin"
+                  type="date"
+                  value={formulario.fecha_fin}
+                  min={formulario.fecha_inicio || undefined}
+                  onChange={cambiar}
+                  required
+                />
 
-              {error && <p className="rojo">{error}</p>}
+                {error && <p role="alert">{error}</p>}
 
-              <button
-                className="azul"
-                type="submit"
-                disabled={cargando || cargandoPlanes || planes.length === 0}
-              >
-                {cargando ? "Creando socio..." : "Crear socio"}
-              </button>
+                <button
+                  className="azul"
+                  type="submit"
+                  disabled={
+                    cargando ||
+                    cargandoPlanes ||
+                    planes.length === 0
+                  }
+                >
+                  {cargando ? "Creando socio..." : "Crear socio"}
+                </button>
+              </form>
+            ) : (
+              <p role="alert">
+                La creación de usuarios de tipo “{tipo}” todavía no está
+                disponible en el backend actual.
+              </p>
+            )}
 
-              <Link to="/socios" className="rojo">
-                Cancelar
-              </Link>
-            </form>
+            <Link to="/socios" className="rojo">
+              Cancelar
+            </Link>
           </div>
         </div>
       </section>

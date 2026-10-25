@@ -1,19 +1,36 @@
 
 import Icon from "./Icon";
-import { useLocation, useNavigate, Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { memo } from "react";
+import { confirmar } from "../components/Alerta";
+import { useAuth } from "../context/AuthContext";
 
-function Header({ atras = false }) {
-  const location = useLocation();
+type HeaderProps = {
+  atras?: boolean;
+  login?: boolean;
+  salir?: boolean;
+};
+
+function Header({ atras = false, login = false, salir = false }: HeaderProps) {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
-
-  const esLogin =
-    location.pathname === "/" ||
-    location.pathname === "/crear";
+  function confirmarCierreSesion() {
+    confirmar(
+      "Vas a cerrar la sesión actual. ¿Querés continuar?",
+      () => {
+        void logout()
+          .then(() => navigate("/", { replace: true }))
+          .catch((error: unknown) => {
+            console.error("Error al cerrar sesión:", error);
+          });
+      }
+    );
+  }
 
   return (
-    <header className={esLogin ? "login" : ""}>
-      {esLogin ? (
+    <header className={login ? "login" : ""}>
+      {login ? (
         <>
           <Icon tipo={10} tamaño={23} />
           <p style={{ marginTop: "0.5vh" }}>
@@ -31,11 +48,23 @@ function Header({ atras = false }) {
             <Icon tipo={18} tamaño={2} />
           </button>
         </>
+      ) : salir ? (
+        <>
+          <Icon tipo={10} tamaño={14} />
+          <button
+            type="button"
+            className="circuloazul2"
+            onClick={confirmarCierreSesion}
+            aria-label="Cerrar sesión"
+          >
+            <Icon tipo={18} tamaño={2} />
+          </button>
+        </>
       ) : (
         <>
           <Icon tipo={10} tamaño={14} />
           <Link to="/noti">
-            <Icon tipo={19} tamaño={2.4} />
+            <Icon tipo={19} tamaño={3.2} />
           </Link>
         </>
       )}
@@ -43,4 +72,4 @@ function Header({ atras = false }) {
   );
 }
 
-export default Header;
+export default memo(Header);

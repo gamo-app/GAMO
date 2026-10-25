@@ -1,3 +1,4 @@
+from datetime import date
 from fastapi import HTTPException
 from supabase import create_async_client
 from supabase_config import get_supabase_config

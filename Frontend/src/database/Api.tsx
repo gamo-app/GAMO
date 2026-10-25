@@ -1,10 +1,5 @@
-
 import { storage } from "./Storage";
 import type { PlanSocio, SocioListado } from "./Socios";
-
-// ============================================
-// Cliente HTTP
-// ============================================
 
 export async function api<T>(
   endpoint: string,
@@ -24,10 +19,11 @@ export async function api<T>(
     let message = errorText;
 
     try {
-      const parsed = JSON.parse(errorText);
+      const parsed: { detail?: string; mensaje?: string } =
+        JSON.parse(errorText);
       message = parsed.detail || parsed.mensaje || errorText;
     } catch {
-      // La respuesta no contiene JSON.
+      // The response body is not JSON.
     }
 
     console.error("Error del backend:", {
@@ -35,7 +31,6 @@ export async function api<T>(
       status: response.status,
       error: errorText,
     });
-
     throw new Error(message || `Error ${response.status}`);
   }
 
@@ -46,13 +41,9 @@ export async function api<T>(
   return response.json() as Promise<T>;
 }
 
-export async function get<T>(endpoint: string): Promise<T> {
+export function get<T>(endpoint: string): Promise<T> {
   return api<T>(endpoint, { method: "GET" });
 }
-
-// ============================================
-// Tipos de usuario y autenticación
-// ============================================
 
 export type UsuarioSesion = {
   uuid_usuario: string;
@@ -80,10 +71,6 @@ export type SesionResponse = {
   usuario: UsuarioSesion;
 };
 
-// ============================================
-// Iniciar sesión
-// ============================================
-
 export async function iniciarSesion(
   email: string,
   password: string
@@ -94,29 +81,15 @@ export async function iniciarSesion(
   });
 }
 
-// ============================================
-// Recuperar sesión existente
-// ============================================
-
 export async function obtenerSesion(): Promise<SesionResponse> {
-  return api<SesionResponse>("/login/auth/me", {
-    method: "GET",
-  });
+  return get<SesionResponse>("/login/auth/me");
 }
-
-// ============================================
-// Cerrar sesión
-// ============================================
 
 export async function cerrarSesion(): Promise<void> {
   await api<{ mensaje: string }>("/login/logout", {
     method: "POST",
   });
 }
-
-// ============================================
-// Socios
-// ============================================
 
 export async function getSocios(): Promise<SocioListado[]> {
   return storage.obtenerDatos<SocioListado[]>(
