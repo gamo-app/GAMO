@@ -3,6 +3,7 @@ from supabase_config import get_supabase_config
 from fastapi import HTTPException
 from model import UsuarioCreate
 
+#ya no exciste mail dentro de la tabla usuario normal  
 async def get_user_from_email(env, email: str, access_token: str):
     url, key = get_supabase_config(env)
     try:
@@ -23,7 +24,7 @@ async def get_user_from_email(env, email: str, access_token: str):
             )
     return response.data
 
-
+#cambiar por rol
 async def get_user_group(env, user_id: str, access_token: str):
     url, key = get_supabase_config(env)
     try:
@@ -83,13 +84,11 @@ async def get_all_usuarios(env, access_token: str):
 
 
 
-
 async def create_user(env, datos: UsuarioCreate):
     url, key = get_supabase_config(env)
     supabase = await create_async_client(url, key)
 
     auth_user = None
-    persona_id = None
 
     try:
         # 1. Crear la identidad en Supabase Auth
@@ -107,28 +106,16 @@ async def create_user(env, datos: UsuarioCreate):
                 detail="No se pudo crear la identidad del usuario.",
             )
 
-        # 2. Crear la persona
-        persona = await (
-            supabase.table("persona")
-            .insert({
-                "nombre": datos.nombre_usuario,
-                "apellido": datos.apellido,
-            })
-            .execute()
-        )
-
-        persona_id = persona.data[0]["id_persona"]
-
-        # 3. Crear el perfil de GAMO
+        # 2. Crear el registro en public.usuario (vinculado con el UUID de Auth)
         perfil = await (
             supabase.table("usuario")
             .insert({
-                "id_usuario": auth_user.id,
-                "id_persona": persona_id,
-                "id_grupo": datos.id_grupo,
-                "id_sede": datos.id_sede,
-                "email": datos.email,
-                "nombre_usuario": datos.email.split("@")[0],
+                "uuid_usuario": auth_user.id,
+                "DNI": datos.DNI,
+                "nombre": datos.nombre,
+                "apellido": datos.apellido,
+                "fecha_nacimiento": datos.fecha_nacimiento.isoformat(),
+                "id_rol": datos.id_rol,
             })
             .execute()
         )
@@ -142,20 +129,7 @@ async def create_user(env, datos: UsuarioCreate):
         raise
 
     except Exception as e:
-        # Evitar dejar una identidad huérfana si falla el alta.
-        # En producción, conviene registrar y gestionar también
-        # posibles fallos durante la limpieza.
-        if persona_id is not None:
-            try:
-                await (
-                    supabase.table("persona")
-                    .delete()
-                    .eq("id_persona", persona_id)
-                    .execute()
-                )
-            except Exception:
-                pass
-
+        # Evitar dejar una identidad huérfana en Auth si falla la inserción en la base de datos.
         if auth_user is not None:
             try:
                 await supabase.auth.admin.delete_user(auth_user.id)

@@ -1,9 +1,9 @@
-from fastapi import HTTPException
-from supabase_config import get_supabase_config
-from workers import fetch
 from supabase import create_async_client
+from supabase_config import get_supabase_config
+from fastapi import HTTPException
 
-async def get_all_cuotas(env, access_token: str):
+
+async def get_all_membresia(env, access_token: str):
     url, key = get_supabase_config(env)
     try:
         supabase = await create_async_client(url, key)
@@ -13,7 +13,7 @@ async def get_all_cuotas(env, access_token: str):
 
         response = (
             await supabase
-            .table("cuota")
+            .table("membresia")
             .select("*")
             .execute()
         )
@@ -22,4 +22,4 @@ async def get_all_cuotas(env, access_token: str):
                 status_code=500,
                 detail=f"Error al obtener las clases: {str(e)}"
             )
-    return response.data    
+    return response.data

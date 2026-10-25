@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Request, Depends
-from fastapi import HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException
+from model import SocioAltaCreate
 from auth import validar_sesion
 
 from Base import base_socio as socio
@@ -10,14 +10,28 @@ from Base import base_socio as socio
 
 router = APIRouter()
 
+
+@router.post("", status_code=201)
+async def crear_socio(
+    datos: SocioAltaCreate,
+    request: Request,
+    access_token: str = Depends(validar_sesion),
+):
+    return await socio.crear_usuario_socio(request.scope["env"], datos)
+
+
+@router.get("/planes")
+async def get_planes(
+    request: Request,
+    access_token: str = Depends(validar_sesion),
+):
+    return await socio.get_all_planes(request.scope["env"], access_token)
+
+
 #get all socios 
 @router.get("")
 async def get_socios(request: Request, access_token: str = Depends(validar_sesion), ):
-    #falta la auth del usuario para saber si tiene permisos 
-    try:
-        return await socio.get_all_socios(request.scope["env"], access_token)
-    except  HTTPException as e:
-        raise HTTPException(400, detail=e.args) 
+    return await socio.get_all_socios(request.scope["env"], access_token)
     
     
 

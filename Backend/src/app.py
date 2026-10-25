@@ -3,15 +3,9 @@ from contextlib import asynccontextmanager
 from Routers import (
     router_asistencia as asistencia,
     router_clase as clase,
-    router_cuota as cuota,
     router_deporte as deporte,
-    router_grupos_roles as grupos_roles,
-    router_importacion as importacion,
-    router_inscripcion as inscripcion,
-    router_persona as persona,
     router_profesor as profesor,
     router_representante as representante,
-    router_roles as roles,
     router_sede as sede,
     router_socio as socio,
     router_usuario as usuario,
@@ -30,6 +24,15 @@ async def lifespan(app:FastAPI):
 
 app = FastAPI(title="GAMO API", version="0.1.0", lifespan=lifespan)
 
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173","https://gamo-ekk.pages.dev"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(login.router,
                    prefix='/login',
                    tags=['login'],
@@ -47,36 +50,11 @@ app.include_router(clase.router,
                    dependencies=[Depends(validar_sesion)],
                    responses={404: {"clase": "Not Found"}})
 
-app.include_router(cuota.router,
-                   prefix='/cuota',
-                   tags=['cuota'],
-                   dependencies=[Depends(validar_sesion)],
-                   responses={404: {"cuota": "Not Found"}})
-
 app.include_router(deporte.router,
                    prefix='/deporte',
                    tags=['deporte'],
                    dependencies=[Depends(validar_sesion)],
                    responses={404: {"deporte": "Not Found"}})
-
-app.include_router(grupos_roles.router,
-                   prefix='/grupos_roles',
-                   tags=['grupos_roles'],
-                   dependencies=[Depends(validar_sesion)],
-                   responses={404: {"grupos_roles": "Not Found"}})
-
-# app.include_router(importacion.router,
-#                    prefix='/importacion',
-#                    tags=['importacion'],
-                    # dependencies=[Depends(validar_sesion)],
-#                    responses={404: {"importacion": "Not Found"}})
-
-app.include_router(persona.router,
-                   prefix='/persona',
-                   tags=['persona'],
-                   dependencies=[Depends(validar_sesion)],
-                   responses={404: {"persona": "Not Found"}})
-
 
 app.include_router(profesor.router,
                    prefix='/profesor',
@@ -97,13 +75,6 @@ app.include_router(sede.router,
                    dependencies=[Depends(validar_sesion)],
                    responses={404: {"sede": "Not Found"}})
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173","https://gamo-ekk.pages.dev"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 app.include_router(socio.router,
                    prefix='/socio',
                    tags=['Socio'],
@@ -113,11 +84,6 @@ app.include_router(socio.router,
 app.include_router(usuario.router,
                    prefix='/usuario',
                    tags=['Usuario'],
-                    dependencies=[Depends(validar_sesion)],
+                    # dependencies=[Depends(validar_sesion)],
                    responses={404: {"Usuario": "Not Found"}})
 
-app.include_router(roles.router,
-                   prefix='/roles',
-                   tags=['Roles'],
-                   dependencies=[Depends(validar_sesion)],
-                   responses={404: {"Roles": "Not Found"}})

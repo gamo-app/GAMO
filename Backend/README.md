@@ -135,9 +135,7 @@ El proyecto utiliza Pywrangler para preparar las dependencias Python necesarias 
 
 Supabase proporciona la base de datos PostgreSQL y sus APIs.
 
-Actualmente, las operaciones contra la base de datos se realizan mediante la **API REST de Supabase utilizando `workers.fetch`**, en lugar de realizar las consultas directamente mediante el SDK de Supabase para Python.
-
-El SDK de Supabase se encuentra declarado como dependencia del proyecto para mantener la posibilidad de utilizarlo cuando sea necesario.
+La mayoría de las operaciones contra Supabase utilizan `workers.fetch` y su API REST. La consulta de los datos del usuario autenticado usa el cliente asíncrono del SDK de Supabase para expresar el filtro y la relación con el rol de forma más directa.
 
 ---
 
@@ -179,9 +177,8 @@ Qué hace cada comando:
 - **FastAPI**: define los endpoints, valida los datos recibidos y publica la
   documentación OpenAPI/Swagger en `/docs`.
 - **Supabase Python SDK**: cliente oficial para acceder a Supabase desde
-  Python. Está instalado como dependencia del proyecto, aunque actualmente los
-  endpoints llaman a la API REST de Supabase con `workers.fetch` para que la
-  petición funcione en Workers.
+  Python. La consulta de los datos del usuario autenticado utiliza su cliente
+  asíncrono; otras operaciones siguen llamando a la API REST con `workers.fetch`.
 - **workers-py**: herramientas de desarrollo de Cloudflare para preparar y
   ejecutar Python Workers.
 
@@ -278,14 +275,14 @@ Los endpoints se organizan mediante routers de FastAPI.
 Ejemplo:
 
 ```text
-GET  /socios
-POST /socios
+GET  /socio
+POST /socio
 ```
 
 ### Obtener socios
 
 ```http
-GET /socios
+GET /socio
 ```
 
 Devuelve la lista de socios disponibles.
@@ -293,10 +290,33 @@ Devuelve la lista de socios disponibles.
 ### Crear un socio
 
 ```http
-POST /socios
+POST /socio
+Content-Type: application/json
 ```
 
-Recibe los datos del nuevo socio en el cuerpo de la petición.
+Requiere una sesión autenticada y recibe los datos de Auth y del perfil:
+
+```json
+{
+  "id_plan": 1,
+  "fecha_inicio": "2026-10-25",
+  "fecha_fin": "2026-11-25",
+  "usuario": {
+    "email": "socio@example.com",
+    "password": "una-clave-segura",
+    "nombre": "Nombre",
+    "apellido": "Apellido",
+    "fecha_nacimiento": "2000-01-01",
+    "DNI": 12345678
+  }
+}
+```
+
+El backend busca el rol llamado `Socio`, crea la identidad en Supabase Auth,
+inserta el perfil en `public.usuario` con el `id_rol` encontrado y crea la fila
+correspondiente en `public.socio`. También requiere `id_plan`, `fecha_inicio`
+y `fecha_fin`; crea la membresía inicial en `public.membresia` con esos datos.
+Los planes disponibles se consultan en `GET /socio/planes`.
 
 La documentación interactiva permite probar estos endpoints desde:
 

@@ -34,7 +34,7 @@ async def get_usuarios(request: Request, access_token: str = Depends(validar_ses
 #     return await usuario.create_user(request.scope["env"],usuario,)
 
 
-@router.post("/", status_code=201)
+@router.post("/ConValidacion", status_code=201)
 async def create_usuario(
     datos: UsuarioCreate,
     request: Request,
@@ -45,6 +45,17 @@ async def create_usuario(
         datos,
     )
 
+
+
+@router.post("/SinValidacion", status_code=201)
+async def create_usuario(
+    datos: UsuarioCreate,
+    request: Request,
+):
+    return await usuario.create_user(
+        request.scope["env"],
+        datos,
+    )
 
 
 

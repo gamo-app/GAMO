@@ -3,7 +3,7 @@ from supabase_config import get_supabase_config
 from fastapi import HTTPException
 
 
-async def get_all_inscripciones(env, access_token: str):
+async def get_all_pago(env, access_token: str):
     url, key = get_supabase_config(env)
     try:
         supabase = await create_async_client(url, key)
@@ -13,7 +13,7 @@ async def get_all_inscripciones(env, access_token: str):
 
         response = (
             await supabase
-            .table("inscripcion")
+            .table("pago")
             .select("*")
             .execute()
         )
