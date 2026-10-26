@@ -1,383 +1,342 @@
-import hashlib
-import json
-import logging
-import os
-import re
 from datetime import date, timedelta
-from typing import Literal, Optional
-from urllib.parse import quote
+import logging
+import re
 
 from fastapi import HTTPException
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from supabase import create_async_client
 from supabase_config import get_supabase_config
-from workers import fetch
+from model import (
+    UsuarioAltaBase as UsuarioBase,
+    UsuarioCreateAdmin,
+    UsuarioCreateRecepcion,
+)
 
 logger = logging.getLogger(__name__)
 
-ROLES_SEDE_OBLIGATORIA = {"socio", "profesor", "representante"}
 ROLES_CON_DEPORTE = {"representante"}
 
 PK_POR_ROL = {
-    "socio": "id_socio",
+    "socio": "codigo_credencial",
     "profesor": "id_profesor",
     "representante": "id_representante",
 }
 
 
-def _generar_hash_y_salt(password: str) -> tuple[str, str]:
-    salt_bytes = os.urandom(16)
-    hash_hex = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        salt_bytes,
-        100_000,
-    ).hex()
-    salt_bytea = f"\\x{salt_bytes.hex()}"
-    return hash_hex, salt_bytea
+def formatear_telefono(v: str | None) -> str | None:
+    """
+    Normaliza el número de celular al formato 'XX XXXX-XXXX' (ej: '11 4960-9553').
+    """
+    if v is None:
+        return None
+    v_str = str(v).strip()
+    if not v_str:
+        return None
 
+    digitos = re.sub(r"\D", "", v_str)
 
-class UsuarioBase(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
+    if digitos.startswith("549") and len(digitos) == 13:
+        digitos = digitos[3:]
+    elif digitos.startswith("54") and len(digitos) == 12:
+        digitos = digitos[2:]
+    elif digitos.startswith("0") and len(digitos) == 11:
+        digitos = digitos[1:]
 
-    nombre: str = Field(min_length=1, description="Nombre de la persona")
-    apellido: str = Field(min_length=1, description="Apellido de la persona")
-    dni: str = Field(pattern=r"^\d{7,9}$", description="Número de documento")
-    telefono: Optional[str] = Field(
-        default=None,
-        description="Teléfono (se formatea automáticamente a XX-XXXX-XXXX, ej: 11-5555-1000)",
-    )
-    fecha_nacimiento: Optional[date] = Field(
-        default=None,
-        description="Fecha de nacimiento en formato YYYY-MM-DD (ej: 1998-05-20)",
-    )
-    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", description="Email del usuario")
-    password: str = Field(min_length=6, description="Contraseña de al menos 6 caracteres")
-    rol: str = Field(description="Rol asignado al usuario")
-    id_sede: Optional[int] = Field(
-        default=None,
-        description="ID de la sede",
-    )
-    id_plan: Optional[int] = Field(
-        default=None,
-        description="ID del plan de membresía (opcional para socios)",
-    )
+    if len(digitos) == 8:
+        digitos = f"11{digitos}"
 
-    @field_validator("telefono", mode="before")
-    @classmethod
-    def formatear_telefono(cls, v: Optional[str]) -> Optional[str]:
-        if v is None:
-            return None
-        v_str = str(v).strip()
-        if not v_str:
-            return None
+    if len(digitos) != 10:
+        raise HTTPException(
+            status_code=400,
+            detail="El teléfono debe contener 10 dígitos (ej: 11 4960-9553).",
+        )
 
-        digitos = re.sub(r"\D", "", v_str)
-
-        if digitos.startswith("549") and len(digitos) == 13:
-            digitos = digitos[3:]
-        elif digitos.startswith("54") and len(digitos) == 12:
-            digitos = digitos[2:]
-        elif digitos.startswith("0") and len(digitos) == 11:
-            digitos = digitos[1:]
-
-        if len(digitos) == 8:
-            digitos = f"11{digitos}"
-
-        if len(digitos) != 10:
-            raise ValueError(
-                "El teléfono debe contener 10 dígitos (ej: 1155551000 o 11-5555-1000)."
-            )
-
-        return f"{digitos[:2]}-{digitos[2:6]}-{digitos[6:]}"
-
-    @field_validator("id_sede", "id_plan", mode="before")
-    @classmethod
-    def normalizar_ids_opcionales(cls, v):
-        if v is None or v == "" or (isinstance(v, int) and v <= 0):
-            return None
-        return v
-
-    @field_validator("email")
-    @classmethod
-    def email_minusculas(cls, v: str) -> str:
-        return v.strip().lower()
-
-
-class UsuarioCreateAdmin(UsuarioBase):
-    rol: Literal["socio", "profesor", "representante"]
-    id_sede: int = Field(
-        gt=0,
-        description="ID de la sede (obligatorio para cualquier alta desde Administración)",
-    )
-    id_deporte: Optional[int] = Field(
-        default=None,
-        description="ID del deporte (obligatorio para representante)",
-    )
-
-    @field_validator("id_deporte", mode="before")
-    @classmethod
-    def normalizar_deporte(cls, v):
-        if v is None or v == "" or (isinstance(v, int) and v <= 0):
-            return None
-        return v
-
-
-class UsuarioCreateRecepcion(UsuarioBase):
-    rol: Literal["socio", "profesor"]
-    id_sede: int = Field(
-        gt=0,
-        description="ID de la sede (obligatorio para cualquier alta desde Recepción)",
-    )
+    return f"{digitos[:2]} {digitos[2:6]}-{digitos[6:]}"
 
 
 async def _rollback(
-    url: str,
-    headers: dict,
-    user_id: Optional[str],
-    id_persona: Optional[int],
-    rol: str,
-    id_socio: Optional[int] = None,
+    supabase,
+    uuid_usuario: str | None = None,
+    codigo_credencial: str | None = None,
+    id_membresia: int | None = None,
+    id_profesor: int | None = None,
+    id_representante: int | None = None,
 ):
     """Deshace los registros creados en orden inverso si ocurre algún fallo."""
     try:
-        if id_socio is not None:
-            await fetch(f"{url}/rest/v1/cuota?id_socio=eq.{id_socio}", method="DELETE", headers=headers)
-            await fetch(f"{url}/rest/v1/membresia?id_socio=eq.{id_socio}", method="DELETE", headers=headers)
-        if id_persona is not None:
-            await fetch(f"{url}/rest/v1/{rol}?id_persona=eq.{id_persona}", method="DELETE", headers=headers)
-            await fetch(f"{url}/rest/v1/usuario?id_persona=eq.{id_persona}", method="DELETE", headers=headers)
-            await fetch(f"{url}/rest/v1/persona?id_persona=eq.{id_persona}", method="DELETE", headers=headers)
-        if user_id:
-            await fetch(f"{url}/auth/v1/admin/users/{user_id}", method="DELETE", headers=headers)
+        if id_membresia is not None:
+            await supabase.table("pago").delete().eq("id_membresia", id_membresia).execute()
+            await supabase.table("membresia").delete().eq("id_membresia", id_membresia).execute()
+        if codigo_credencial is not None:
+            await supabase.table("socio").delete().eq("codigo_credencial", codigo_credencial).execute()
+        if id_representante is not None:
+            await supabase.table("representante").delete().eq("id_representante", id_representante).execute()
+        if id_profesor is not None:
+            await supabase.table("profesor").delete().eq("id_profesor", id_profesor).execute()
+        if uuid_usuario is not None:
+            await supabase.table("usuario").delete().eq("uuid_usuario", uuid_usuario).execute()
+            await supabase.auth.admin.delete_user(uuid_usuario)
     except Exception:
-        logger.exception("Error durante rollback (id_persona=%s, user_id=%s)", id_persona, user_id)
-
-
-async def _existe_activo(url: str, headers: dict, tabla: str, columna: str, valor) -> bool:
-    res = await fetch(
-        f"{url}/rest/v1/{tabla}?select={columna}&{columna}=eq.{valor}&activo=eq.true",
-        headers=headers,
-    )
-    if not res.ok:
-        return False
-    datos = await res.json()
-    return bool(datos)
+        logger.exception("Error durante rollback (uuid_usuario=%s)", uuid_usuario)
 
 
 async def crear_usuario_completo(env, datos: UsuarioBase) -> dict:
     url, key = get_supabase_config(env)
-    headers = {
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json",
-        "Prefer": "return=representation",
-    }
+    supabase = await create_async_client(url, key)
 
-    rol = datos.rol
-    id_deporte = getattr(datos, "id_deporte", None) if rol in ROLES_CON_DEPORTE else None
+    uuid_usuario = None
+    codigo_credencial = None
+    id_membresia = None
+    id_profesor = None
+    id_representante = None
 
-    if rol in ROLES_SEDE_OBLIGATORIA and datos.id_sede is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"El {rol} debe tener una sede válida asignada (id_sede mayor a 0).",
-        )
-    if rol in ROLES_CON_DEPORTE and id_deporte is None:
-        raise HTTPException(
-            status_code=400,
-            detail="El representante debe tener un deporte asignado (id_deporte mayor a 0).",
-        )
-
-    # 1. Buscar id_grupo
-    grupo_res = await fetch(
-        f"{url}/rest/v1/grupo_usuario?select=id_grupo&nombre=ilike.{quote(rol)}",
-        headers=headers,
-    )
-    grupo_data = await grupo_res.json() if grupo_res.ok else []
-    if not grupo_data:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No existe el grupo para el rol '{rol}' en la tabla grupo_usuario.",
-        )
-    id_grupo = grupo_data[0]["id_grupo"]
-
-    # 2. Verificar deporte y sede activos
-    if id_deporte is not None and not await _existe_activo(url, headers, "deporte", "id_deporte", id_deporte):
-        raise HTTPException(
-            status_code=400,
-            detail=f"El deporte con ID {id_deporte} no existe o está inactivo.",
-        )
-    if datos.id_sede is not None and not await _existe_activo(url, headers, "sede", "id_sede", datos.id_sede):
-        raise HTTPException(
-            status_code=400,
-            detail=f"La sede con ID {datos.id_sede} no existe o está inactiva.",
-        )
-
-    # 3. Verificar duplicados de DNI y Email
-    dni_res = await fetch(f"{url}/rest/v1/persona?select=id_persona&dni=eq.{quote(datos.dni)}", headers=headers)
-    if dni_res.ok and await dni_res.json():
-        raise HTTPException(status_code=409, detail="Ya existe una persona registrada con ese DNI.")
-
-    email_res = await fetch(f"{url}/rest/v1/usuario?select=id_usuario&email=eq.{quote(datos.email)}", headers=headers)
-    if email_res.ok and await email_res.json():
-        raise HTTPException(status_code=409, detail="Ya existe un usuario registrado con ese email.")
-
-    user_id = None
-    id_persona = None
-    id_socio = None
     try:
-        # 4. Crear en Supabase Auth
-        auth_res = await fetch(
-            f"{url}/auth/v1/admin/users",
-            method="POST",
-            headers=headers,
-            body=json.dumps({
-                "email": datos.email,
-                "password": datos.password,
-                "email_confirm": True,
-            }),
-        )
-        if not auth_res.ok:
-            raise Exception(await auth_res.text())
-        auth_data = await auth_res.json()
-        user_id = auth_data["id"]
+        rol = datos.rol.strip().lower()
+        telefono_formateado = formatear_telefono(datos.telefono)
+        id_deporte = getattr(datos, "id_deporte", None) if rol in ROLES_CON_DEPORTE else None
 
-        # 5. Insertar en tabla persona
-        persona_res = await fetch(
-            f"{url}/rest/v1/persona",
-            method="POST",
-            headers=headers,
-            body=json.dumps({
+        if rol in ROLES_CON_DEPORTE and id_deporte is None:
+            raise HTTPException(
+                status_code=400,
+                detail="El representante debe tener un deporte asignado (id_deporte mayor a 0).",
+            )
+
+        # 1. Buscar id_rol en la tabla rol (con respaldo a 'profesor' si es representante)
+        rol_res = await (
+            supabase.table("rol")
+            .select("id_rol,nombre")
+            .ilike("nombre", f"{rol}%")
+            .limit(1)
+            .execute()
+        )
+        if not rol_res.data and rol == "representante":
+            rol_res = await (
+                supabase.table("rol")
+                .select("id_rol,nombre")
+                .ilike("nombre", "profesor%")
+                .limit(1)
+                .execute()
+            )
+        if not rol_res.data:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No existe el rol '{rol}' en la tabla rol.",
+            )
+        id_rol = rol_res.data[0]["id_rol"]
+
+        # 2. Validar claves foráneas antes de insertar en Auth o en usuario
+        if id_deporte is not None:
+            dep_res = await (
+                supabase.table("deporte")
+                .select("id_deporte")
+                .eq("id_deporte", id_deporte)
+                .eq("activo", True)
+                .limit(1)
+                .execute()
+            )
+            if not dep_res.data:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"El deporte con ID {id_deporte} no existe o está inactivo.",
+                )
+
+        if datos.id_sede is not None:
+            sede_res = await (
+                supabase.table("sede")
+                .select("id_sede")
+                .eq("id_sede", datos.id_sede)
+                .eq("activa", True)
+                .limit(1)
+                .execute()
+            )
+            if not sede_res.data:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"La sede con ID {datos.id_sede} no existe o está inactiva.",
+                )
+
+        plan_info = None
+        if rol == "socio" and datos.id_plan is not None:
+            plan_res = await (
+                supabase.table("plan")
+                .select("*")
+                .eq("id_plan", datos.id_plan)
+                .limit(1)
+                .execute()
+            )
+            if not plan_res.data:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"El plan con ID {datos.id_plan} no existe.",
+                )
+            plan_info = plan_res.data[0]
+
+        # 3. Verificar duplicado de DNI en public.usuario
+        dni_res = await (
+            supabase.table("usuario")
+            .select("uuid_usuario")
+            .eq("DNI", datos.dni)
+            .limit(1)
+            .execute()
+        )
+        if dni_res.data:
+            raise HTTPException(
+                status_code=409,
+                detail="Ya existe un usuario registrado con ese DNI.",
+            )
+
+        # 4. Crear identidad en Supabase Auth
+        auth_res = await supabase.auth.admin.create_user({
+            "email": datos.email,
+            "password": datos.password,
+            "email_confirm": True,
+            "user_metadata": {
                 "nombre": datos.nombre,
                 "apellido": datos.apellido,
                 "dni": datos.dni,
-                "telefono": datos.telefono,
-                "fecha_nacimiento": datos.fecha_nacimiento.isoformat() if datos.fecha_nacimiento else None,
-            }),
-        )
-        if not persona_res.ok:
-            raise Exception(await persona_res.text())
-        persona_data = await persona_res.json()
-        id_persona = persona_data[0]["id_persona"]
+                "telefono": telefono_formateado,
+                "rol": rol,
+            },
+        })
+        if auth_res.user is None:
+            raise HTTPException(
+                status_code=500,
+                detail="No se pudo crear la identidad del usuario en Supabase Auth.",
+            )
+        uuid_usuario = auth_res.user.id
 
-        # 6. Insertar en tabla usuario (con estado 'activo' explícito)
-        hash_hex, salt_bytea = _generar_hash_y_salt(datos.password)
-        usuario_res = await fetch(
-            f"{url}/rest/v1/usuario",
-            method="POST",
-            headers=headers,
-            body=json.dumps({
-                "id_usuario": user_id,
-                "id_persona": id_persona,
-                "id_sede": datos.id_sede,
-                "id_grupo": id_grupo,
-                "email": datos.email,
-                "nombre_usuario": f"{datos.nombre} {datos.apellido}",
-                "hash": hash_hex,
-                "salt": salt_bytea,
-                "estado": "activo",
-            }),
+        # 5. Insertar en public.usuario
+        await (
+            supabase.table("usuario")
+            .insert({
+                "uuid_usuario": uuid_usuario,
+                "DNI": datos.dni,
+                "nombre": datos.nombre,
+                "apellido": datos.apellido,
+                "fecha_nacimiento": datos.fecha_nacimiento.isoformat(),
+                "id_rol": id_rol,
+            })
+            .execute()
         )
-        if not usuario_res.ok:
-            raise Exception(await usuario_res.text())
 
-        # 7. Insertar en tabla del rol (socio / profesor / representante)
+        # 6. Insertar en la tabla específica del rol
         hoy = date.today()
-        payload = {"id_persona": id_persona}
+        datos_rol = {}
+
         if rol == "socio":
-            payload["id_sede"] = datos.id_sede
-            payload["fecha_alta"] = hoy.isoformat()
-        elif rol == "representante":
-            payload["id_deporte"] = id_deporte
+            socio_res = await (
+                supabase.table("socio")
+                .insert({"uuid_usuario": uuid_usuario})
+                .execute()
+            )
+            datos_rol = socio_res.data[0] if socio_res.data else {}
+            codigo_credencial = datos_rol.get("codigo_credencial")
 
-        rol_res = await fetch(
-            f"{url}/rest/v1/{rol}",
-            method="POST",
-            headers=headers,
-            body=json.dumps(payload),
-        )
-        if not rol_res.ok:
-            raise Exception(await rol_res.text())
-        rol_lista = await rol_res.json()
-        datos_rol = rol_lista[0] if rol_lista else {}
+            # 7. Si se indicó un plan válido, crear membresía y pago inicial
+            if plan_info is not None and codigo_credencial is not None:
+                vencimiento = hoy + timedelta(days=30)
 
-        # 8. Si es socio y se indicó un plan (o existe un plan activo), crear membresía y primera cuota
-        if rol == "socio":
-            id_socio = datos_rol.get("id_socio")
-            if datos.id_plan is not None and id_socio is not None:
-                plan_res = await fetch(
-                    f"{url}/rest/v1/plan_membresia?select=*&id_plan=eq.{datos.id_plan}&activo=eq.true",
-                    headers=headers,
-                )
-                planes = await plan_res.json() if plan_res.ok else []
-                if not planes:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"El plan con ID {datos.id_plan} no existe o está inactivo.",
-                    )
-                plan_info = planes[0]
-                duracion = int(plan_info.get("duracion_dias") or 30)
-                vencimiento = hoy + timedelta(days=duracion)
-                monto = plan_info.get("precio") or plan_info.get("monto") or 0
-
-                memb_res = await fetch(
-                    f"{url}/rest/v1/membresia",
-                    method="POST",
-                    headers=headers,
-                    body=json.dumps({
-                        "id_socio": id_socio,
+                memb_res = await (
+                    supabase.table("membresia")
+                    .insert({
+                        "codigo_credencial": codigo_credencial,
                         "id_plan": datos.id_plan,
                         "fecha_inicio": hoy.isoformat(),
                         "fecha_fin": vencimiento.isoformat(),
-                        "estado": "activo",
-                    }),
+                        "porcentaje_descuento": 0,
+                    })
+                    .execute()
                 )
-                if not memb_res.ok:
-                    raise Exception(await memb_res.text())
-                memb_lista = await memb_res.json()
-                id_membresia = memb_lista[0].get("id_membresia") if memb_lista else None
+                if memb_res.data:
+                    id_membresia = memb_res.data[0].get("id_membresia")
+                    monto = float(plan_info.get("precio_semanal") or 0)
+                    if id_membresia is not None and monto > 0:
+                        await (
+                            supabase.table("pago")
+                            .insert({
+                                "id_membresia": id_membresia,
+                                "monto": monto,
+                            })
+                            .execute()
+                        )
 
-                cuota_payload = {
-                    "id_socio": id_socio,
-                    "periodo": hoy.replace(day=1).isoformat(),
-                    "fecha_vencimiento": vencimiento.isoformat(),
-                    "estado": "pendiente",
-                    "monto": monto,
-                }
-                if id_membresia is not None:
-                    cuota_payload["id_membresia"] = id_membresia
+        elif rol == "profesor":
+            prof_res = await (
+                supabase.table("profesor")
+                .insert({"uuid_usuario": uuid_usuario})
+                .execute()
+            )
+            datos_rol = prof_res.data[0] if prof_res.data else {}
+            id_profesor = datos_rol.get("id_profesor")
 
-                cuota_res = await fetch(
-                    f"{url}/rest/v1/cuota",
-                    method="POST",
-                    headers=headers,
-                    body=json.dumps(cuota_payload),
+        elif rol == "representante":
+            prof_res = await (
+                supabase.table("profesor")
+                .insert({"uuid_usuario": uuid_usuario})
+                .execute()
+            )
+            prof_data = prof_res.data[0] if prof_res.data else {}
+            id_profesor = prof_data.get("id_profesor")
+
+            if id_profesor is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail="No se pudo generar el perfil de profesor para el representante.",
                 )
-                if not cuota_res.ok:
-                    raise Exception(await cuota_res.text())
+
+            rep_res = await (
+                supabase.table("representante")
+                .insert({
+                    "id_profesor": id_profesor,
+                    "id_deporte": id_deporte,
+                })
+                .execute()
+            )
+            datos_rol = rep_res.data[0] if rep_res.data else {}
+            id_representante = datos_rol.get("id_representante")
 
         respuesta = {
             "mensaje": f"{rol.capitalize()} registrado exitosamente en el sistema.",
-            "id_usuario": user_id,
-            "id_persona": id_persona,
+            "uuid_usuario": uuid_usuario,
+            "id_usuario": uuid_usuario,
+            "telefono": telefono_formateado,
             "rol": rol,
             PK_POR_ROL[rol]: datos_rol.get(PK_POR_ROL[rol]),
         }
 
-        if rol == "socio" and "codigo_credencial" in datos_rol:
-            respuesta["codigo_credencial"] = datos_rol["codigo_credencial"]
+        if rol == "representante" and id_profesor is not None:
+            respuesta["id_profesor"] = id_profesor
 
         return respuesta
 
     except HTTPException:
-        await _rollback(url, headers, user_id, id_persona, rol, id_socio)
+        await _rollback(
+            supabase,
+            uuid_usuario,
+            codigo_credencial,
+            id_membresia,
+            id_profesor,
+            id_representante,
+        )
         raise
     except Exception as e:
-        await _rollback(url, headers, user_id, id_persona, rol, id_socio)
+        await _rollback(
+            supabase,
+            uuid_usuario,
+            codigo_credencial,
+            id_membresia,
+            id_profesor,
+            id_representante,
+        )
         logger.exception("Error al registrar el usuario")
         texto = str(e).lower()
         if "duplicate key" in texto or "23505" in texto or "already" in texto:
-            raise HTTPException(status_code=409, detail="El DNI o el email ya están registrados.")
+            raise HTTPException(
+                status_code=409,
+                detail="El DNI o el email ya están registrados.",
+            )
         raise HTTPException(
             status_code=500,
             detail=f"Error al registrar el usuario en la base de datos: {str(e)}",
         )
+    finally:
+        await supabase.postgrest.aclose()
