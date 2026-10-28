@@ -50,7 +50,7 @@ function NavBar() {
         </NavLink>
       )}
 
-      <NavLink to="/usuario" className="icono">
+      <NavLink to="/perfil" className="icono">
         {({ isActive }) => (
           <>
             <Icon tipo={2} tamaño={3} color={isActive ? 1 : 0} />

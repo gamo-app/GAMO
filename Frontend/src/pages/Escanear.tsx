@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import Header from "../components/Header";
-import Main from "../components/Main";
 import Icon from "../components/Icon";
 
 function Escanear() {
@@ -63,8 +61,8 @@ function Escanear() {
   }, []);
 
   return (
-    <Main>
-      <Header atras />
+    <>
+
 
       <section className={errorCamara ? "escanear centro" :"escanear"}>
         <div className="texto-escanear"></div>
@@ -86,7 +84,7 @@ function Escanear() {
           </div>
         )}
       </section>
-    </Main>
+    </>
   );
 }
 

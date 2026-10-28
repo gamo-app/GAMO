@@ -1,12 +1,10 @@
-import NavBar from "../components/Navbar"
-import Header from "../components/Header"
-import Main from "../components/Main";
+
 function Buscar() {
 
   return (
-    <Main>
+    <>
       
-     <Header/>
+  
 
       <section>
      <div className="listabloques">
@@ -18,8 +16,8 @@ function Buscar() {
    
       </section>
 
-     <NavBar/>
-   </Main>
+     
+   </>
   );
 }
 

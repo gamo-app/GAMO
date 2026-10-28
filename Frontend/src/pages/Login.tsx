@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import Header from "../components/Header";
-import Main from "../components/Main";
 import { useAuth } from "../context/AuthContext";
-import { storage } from "../database/Storage";
-import Presentacion from "./Presentacion";
+import { storage } from "../storage/Storage";
+import Presentacion from "../components/Presentacion";
 
 function Login() {
   const navigate = useNavigate();
@@ -53,9 +51,8 @@ function Login() {
   }
 
   return (
-    <Main>
+    <>
       {mostrarPresentacion && <Presentacion />}
-      <Header login />
 
       <section className="login">
         <div className="listabloques">
@@ -106,7 +103,7 @@ function Login() {
           </form>
         </div>
       </section>
-    </Main>
+    </>
   );
 }
 

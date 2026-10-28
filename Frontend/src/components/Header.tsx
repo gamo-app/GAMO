@@ -1,7 +1,7 @@
+import { memo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 import Icon from "./Icon";
-import { Link, useNavigate } from "react-router-dom";
-import { memo } from "react";
 import { confirmar } from "../components/Alerta";
 import { useAuth } from "../context/AuthContext";
 
@@ -11,7 +11,11 @@ type HeaderProps = {
   salir?: boolean;
 };
 
-function Header({ atras = false, login = false, salir = false }: HeaderProps) {
+function Header({
+  atras = false,
+  login = false,
+  salir = false,
+}: HeaderProps) {
   const navigate = useNavigate();
   const { logout } = useAuth();
 
@@ -40,8 +44,8 @@ function Header({ atras = false, login = false, salir = false }: HeaderProps) {
       ) : atras ? (
         <>
           <Icon tipo={10} tamaño={14} />
-
           <button
+            type="button"
             className="circuloazul2"
             onClick={() => navigate(-1)}
           >
@@ -63,7 +67,7 @@ function Header({ atras = false, login = false, salir = false }: HeaderProps) {
       ) : (
         <>
           <Icon tipo={10} tamaño={14} />
-          <Link to="/noti">
+          <Link to="/notificacion">
             <Icon tipo={19} tamaño={3.2} />
           </Link>
         </>

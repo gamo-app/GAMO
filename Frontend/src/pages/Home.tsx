@@ -1,7 +1,5 @@
 import { useEffect, useRef } from "react";
-import NavBar from "../components/Navbar";
-import Header from "../components/Header";
-import Main from "../components/Main";
+
 import { useAuth } from "../context/AuthContext";
 
 function Home() {
@@ -27,8 +25,7 @@ function Home() {
   }
 
   return (
-    <Main>
-      <Header />
+    <>
 
       <section>
         <div className="listabloques">
@@ -44,8 +41,7 @@ function Home() {
         </div>
       </section>
 
-      <NavBar />
-    </Main>
+    </>
   );
 }
 

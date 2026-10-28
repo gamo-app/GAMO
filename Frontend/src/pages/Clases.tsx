@@ -1,7 +1,5 @@
 import ListaHorarios from "../components/ListaHorarios"
-import NavBar from "../components/Navbar"
-import Header from "../components/Header"
-import Main from "../components/Main";
+
 
 function Clases() {
 
@@ -13,9 +11,9 @@ function Clases() {
     { estado: 0, fecha: "2026-10-07T09:00:00", deporte:"Muay thai" },
   ];
   return (
-    <Main>
+    <>
       
-     <Header/>
+
 
       <section>
      <div className="listabloques">
@@ -25,8 +23,8 @@ function Clases() {
    
       </section>
 
-     <NavBar/>
-   </Main>
+
+   </>
   );
 }
 

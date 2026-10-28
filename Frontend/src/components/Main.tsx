@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
-import { storage } from "../database/Storage";
+import { storage } from "../storage/Storage";
 
 interface MainProps {
   children: ReactNode;

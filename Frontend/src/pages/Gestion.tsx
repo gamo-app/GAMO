@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
-import Header from "../components/Header";
 import Icon from "../components/Icon";
-import Main from "../components/Main";
-import NavBar from "../components/Navbar";
 import Socio from "../components/Socio";
-import { get, getSocios } from "../database/Api";
+import { get, getSocios } from "../api/Api";
 import {
   evaluarMembresia,
   type EstadoSocio,
   type SocioListado,
-} from "../database/Socios";
+} from "../api/Socios";
+import Perfil from "./Perfil";
 
 type Tipo = "socios" | "profesores" | "representantes" | "admins";
 
@@ -134,6 +132,7 @@ async function cargarRegistros(tipo: Tipo): Promise<RegistroGestion[]> {
 
 function Gestion() {
   const { id } = useParams();
+
   const [tipo, setTipo] = useState<Tipo>("socios");
   const [registros, setRegistros] = useState<RegistroGestion[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -194,9 +193,27 @@ function Gestion() {
     });
   }, [registros, busquedaAplicada, estado]);
 
-  if (id) {
-    return <Navigate to="/gestion" replace />;
+   if (id) {
+  if (cargando) {
+    return <>Cargando socio...</>;
   }
+
+  if (error) {
+    return <p role="alert">{error}</p>;
+  }
+
+  const registro = registros.find((item) => item.id === id);
+
+  if (!registro) {
+    return <>Registro no encontrado</>;
+  }
+
+  if (!registro.socio) {
+    return <>Este registro no es un socio.</>;
+  }
+
+  return <Perfil socio={registro.socio} />;
+}
 
   function buscar(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -213,8 +230,7 @@ function Gestion() {
   }
 
   return (
-    <Main>
-      <Header />
+    <>
 
       <section style={{ padding: 0 }}>
         <div className="listabloques columnafija">
@@ -385,8 +401,8 @@ function Gestion() {
         </div>
       </section>
 
-      <NavBar />
-    </Main>
+
+    </>
   );
 }
 

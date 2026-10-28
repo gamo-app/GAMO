@@ -1,8 +1,7 @@
 import { useState } from "react";
 import {  useNavigate } from "react-router-dom";
-import Header from "../components/Header";
 import Fecha from "../components/Fecha";
-import Main from "../components/Main";
+
 function Sign() {
   
   const [paso, setPaso] = useState(1);
@@ -28,8 +27,7 @@ function Sign() {
   };
 
   return (
-    <Main>
-      <Header login />
+    <>
 
       <section className="login">
         <form className="listabloques">
@@ -167,7 +165,7 @@ function Sign() {
 
         </form>
       </section>
-  </Main>
+  </>
   );
 }
 

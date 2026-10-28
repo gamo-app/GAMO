@@ -1,6 +1,5 @@
 //import { cambiarcontraseña } from "../database/Api";
-import Header from "../components/Header";
-import Main from "../components/Main";
+
 import Icon from "../components/Icon";
 import { Link,useNavigate } from "react-router-dom";
 import { confirmar } from "../components/Alerta";
@@ -13,8 +12,8 @@ const navigate = useNavigate();
     confetti.current?.aparecer();
   }, []);
   return (
-    <Main>
-      <Header salir />
+    <>
+   
   <Confetti ref={confetti} />
       <section className="centro2">
         <div className="listabloques">
@@ -78,7 +77,7 @@ const navigate = useNavigate();
         </div>
         </div>
       </section>
-  </Main>
+  </>
   );
 }
 

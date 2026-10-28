@@ -144,4 +144,50 @@
     margin-left: 0;
     rotate: 720deg;
   }
+}   
+
+
+.page-transition {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
+}
+/*
+section{
+  animation: mostrar .2s ease-in-out ;
+}
+
+@keyframes mostrar {
+  from{
+    opacity: 0;
+  }
+   to{
+    opacity: 1;
+
+  }
+}*/
+.page-transition.page-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@keyframes titila {
+  0%{
+    opacity: 1;
+  }
+  50%{
+    opacity: 0.5;
+
+  }
+  100%{
+    opacity: 1;
+
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    transition: none;
+    transform: none;
+  }
 }

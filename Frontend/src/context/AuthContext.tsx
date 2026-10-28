@@ -1,4 +1,4 @@
-
+import type { UsuarioSesion } from "../api/Socios.ts";
 import {
   createContext,
   useContext,
@@ -11,8 +11,7 @@ import {
   iniciarSesion,
   obtenerSesion,
   cerrarSesion,
-  type UsuarioSesion,
-} from "../database/Api";
+} from "../api/Api";
 
 type AuthContextType = {
   usuario: UsuarioSesion | null;

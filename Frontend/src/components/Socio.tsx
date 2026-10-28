@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 import Icon from "./Icon";
-import { evaluarMembresia, type SocioListado } from "../database/Socios";
+import { evaluarMembresia, type SocioListado } from "../api/Socios";
 
 type SocioProps = {
   socio?: SocioListado;
@@ -16,12 +16,7 @@ function Socio({ socio, carga = false }: SocioProps) {
     ? evaluarMembresia(socio.membresias)
     : { estado: null, membresia: null };
 
-  const estadoClase = {
-    activo: "iconoestado1",
-    pendiente: "iconoestado0",
-    inactivo: "iconoestado2",
-    sin_membresia: "iconoestado4",
-  }[estado ?? "sin_membresia"];
+
 
   return (
     <article
@@ -30,31 +25,25 @@ function Socio({ socio, carga = false }: SocioProps) {
       } ${carga ? "cargando" : ""}`}
     >
       <div className="divisorx">
-        <div className={`cuadrado ${estadoClase} iconoperfil`}>
+        <div className={`cuadrado iconoestado4 iconoperfil`}>
           <Icon
             tipo={2}
-            color={estado === "inactivo" ? 4 : 0}
+            color={0}
             tamaño={3.6}
           />
         </div>
 
         <div className="texto2">
-          <h4>
-            {socio ? (
-              <Link
-                to={`/socios/${socio.codigo_credencial}`}
-                style={{ color: "inherit" }}
-              >
-                {nombre}
-              </Link>
-            ) : (
-              nombre
-            )}
-          </h4>
+          <div className="listax2">
+            <h4>{nombre}</h4>
+            <div className={estado === "inactivo" ? "circulo rojo" : "circulo verde"}></div>
+           
+          </div>
+         
           <div className="divisorx3">
             <p>{membresia?.plan?.nombre ?? "Sin membresía"}</p>
-            <p aria-hidden="true">·</p>
-            <p>{estado?.replace("_", " ") ?? "Sin membresía"}</p>
+
+    
           </div>
         </div>
       </div>
@@ -62,7 +51,7 @@ function Socio({ socio, carga = false }: SocioProps) {
       {socio && (
         <Link
           className="botoncuadrado"
-          to={`/socios/${socio.codigo_credencial}`}
+          to={`/gestion/${socio.codigo_credencial}`}
           aria-label={`Ver detalles de ${nombre}`}
         >
           <Icon tipo={13} tamaño={3} />

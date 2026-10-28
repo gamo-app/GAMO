@@ -1,5 +1,12 @@
-import { storage } from "./Storage";
-import type { PlanSocio, SocioListado } from "./Socios";
+import { storage } from "../storage/Storage";
+import type { 
+  PlanSocio, 
+  SocioListado,
+  SesionResponse,
+  LoginResponse,
+  CrearSocioResponse,
+  CrearSocioRequest
+} from "./Socios";
 
 export async function api<T>(
   endpoint: string,
@@ -45,32 +52,6 @@ export function get<T>(endpoint: string): Promise<T> {
   return api<T>(endpoint, { method: "GET" });
 }
 
-export type UsuarioSesion = {
-  uuid_usuario: string;
-  DNI: number;
-  nombre: string;
-  apellido: string;
-  fecha_nacimiento: string;
-  rol: {
-    id_rol: number;
-    nombre: string;
-    permisos: Record<string, boolean>;
-  } | null;
-  email: string | null;
-};
-
-export type LoginResponse = {
-  mensaje: string;
-  usuario: {
-    id: string;
-    email: string | null;
-  };
-};
-
-export type SesionResponse = {
-  usuario: UsuarioSesion;
-};
-
 export async function iniciarSesion(
   email: string,
   password: string
@@ -102,43 +83,7 @@ export async function getPlanes(): Promise<PlanSocio[]> {
   return get<PlanSocio[]>("/socio/planes");
 }
 
-export type CrearSocioRequest = {
-  id_plan: number;
-  fecha_inicio: string;
-  fecha_fin: string;
-  usuario: {
-    nombre: string;
-    apellido: string;
-    fecha_nacimiento: string;
-    DNI: number;
-    email: string;
-    password: string;
-  };
-};
 
-export type CrearSocioResponse = {
-  mensaje: string;
-  usuario: {
-    uuid_usuario: string;
-    DNI: number;
-    nombre: string;
-    apellido: string;
-    fecha_nacimiento: string;
-    id_rol: number;
-    email: string;
-  };
-  socio: {
-    codigo_credencial: string;
-    uuid_usuario: string;
-  };
-  membresia: {
-    id_membresia: number;
-    codigo_credencial: string;
-    id_plan: number;
-    fecha_inicio: string;
-    fecha_fin: string;
-  };
-};
 
 export async function setSocio(
   socio: CrearSocioRequest

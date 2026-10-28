@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import Icon from "../components/Icon";
-import Main from "../components/Main";
-import NavBar from "../components/Navbar";
-import { getPlanes, setSocio } from "../database/Api";
-import type { PlanSocio } from "../database/Socios";
+
+import { getPlanes, setSocio } from "../api/Api";
+import type { PlanSocio } from "../api/Socios";
 
 type FormularioSocio = {
   nombre: string;
@@ -117,17 +115,12 @@ function Agregarsocio() {
   }
 
   return (
-    <Main>
-      <header className="h2">
-        <h1>{esAltaSocio ? "Agregar socio" : "Alta no disponible"}</h1>
-        <Link to="/socios" className="circuloazul2" aria-label="Volver">
-          <Icon tipo={18} tamaño={2} />
-        </Link>
-      </header>
+    <>
+   
 
       <section>
         <div className="listabloques">
-          <div className="bloque4">
+          <div className="bloque4 espaciado">
             {esAltaSocio ? (
               <form onSubmit={crearSocio} className="listay2">
                 <label htmlFor="nombre">Nombre</label>
@@ -283,8 +276,8 @@ function Agregarsocio() {
         </div>
       </section>
 
-      <NavBar />
-    </Main>
+  
+    </>
   );
 }
 
