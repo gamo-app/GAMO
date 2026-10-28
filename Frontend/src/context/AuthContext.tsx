@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-
+import { storage } from "../storage/Storage";
 import type { UsuarioSesion } from "../api/Socios";
 import {
   iniciarSesion,
@@ -34,8 +34,8 @@ export function AuthProvider({
   children: ReactNode;
 }) {
   const [usuario, setUsuario] = useState<UsuarioSesion | null>(
-    null
-  );
+  () => storage.get<UsuarioSesion>("usuarioSesion")
+);
   const [cargando, setCargando] = useState(true);
 
   // Recuperar la sesión automáticamente al abrir la aplicación.
@@ -69,29 +69,27 @@ export function AuthProvider({
 
   // Iniciar sesión y recuperar los datos actualizados del usuario.
   async function login(
-    email: string,
-    password: string
-  ): Promise<UsuarioSesion> {
-    await iniciarSesion(
-      email,
-      password
-    );
+  email: string,
+  password: string
+): Promise<UsuarioSesion> {
+  await iniciarSesion(email, password);
 
-    const sesion = await obtenerSesion();
+  const sesion = await obtenerSesion();
+  storage.set("usuarioSesion", sesion.usuario);
+  setUsuario(sesion.usuario);
 
-    setUsuario(sesion.usuario);
-
-    return sesion.usuario;
-  }
+  return sesion.usuario;
+}
 
   // Cerrar sesión.
   async function logout() {
-    try {
-      await cerrarSesion();
-    } finally {
-      setUsuario(null);
-    }
+  try {
+    await cerrarSesion();
+  } finally {
+    storage.remove("usuarioSesion");
+    setUsuario(null);
   }
+}
 
   return (
     <AuthContext.Provider

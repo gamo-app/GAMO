@@ -8,9 +8,9 @@ function NavBar() {
 
   return (
     <footer>
-       <div className="pc contenedorazul">
+      {/* <div className="pc contenedorazul">
           <Icon tipo={10} tamaño={14} />
-        </div>
+        </div>*/}
       <NavLink to="/home" className="icono">
         {({ isActive }) => (
           <>

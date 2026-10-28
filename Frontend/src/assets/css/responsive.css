@@ -7,7 +7,7 @@
   top: 0;
   display: grid;
   grid-template: 
-  "FOO HEA HEA" auto
+  "HEA HEA HEA" auto
   "FOO SEC SEC" 1fr
   "FOO SEC SEC" auto/
   auto 1fr 1fr
@@ -19,15 +19,12 @@
 footer{
     width: 20vh;
     flex-direction: column;
-    padding: 0vh;
     align-items: start;
     gap: 2vh;
+    padding: 2vh;
     justify-content: start;
 }
-footer a{
-  margin-left: 2vh;
-  margin-right: 2vh;
-}
+
 .estirado .rectangulo{
     max-width: 100%;
 }

@@ -34,7 +34,8 @@ function Perfil({ socio }: Props) {
   function cambiarModo(event: React.ChangeEvent<HTMLSelectElement>) {
     const nuevoModo = event.target.value === "true";
     setModoOscuro(nuevoModo);
-    storage.set("modoOscuro", nuevoModo);
+    storage.set("modoOscuro", nuevoModo); // o false
+  window.dispatchEvent(new Event("modoOscuroCambiado"));
   }
 
   async function handleCerrarSesion() {
