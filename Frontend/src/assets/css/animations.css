@@ -104,10 +104,7 @@
 
   }
 }
-.desaparecer{
-  animation: desaparecer 0.5s both;
-  animation-delay: 2s;
-}
+
 @keyframes desaparecer {
   0%{
     opacity: 1;

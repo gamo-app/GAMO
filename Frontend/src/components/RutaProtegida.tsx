@@ -11,7 +11,15 @@ function RutaProtegida({ permiso }: Props) {
   const { usuario, cargando } = useAuth();
 
   if (cargando) {
-    return <p>Verificando sesión...</p>;
+    return(
+    <div className="alerta-fondo">
+      <img
+        src="/cargando.svg"
+        alt="Cargando..."
+        className="cargando"
+      />
+    </div>
+    ) ;
   }
 
   if (!usuario) {

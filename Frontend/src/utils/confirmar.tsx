@@ -1,4 +1,3 @@
-
 import { createRoot } from "react-dom/client";
 import Icon from "../components/Icon";
 
@@ -6,8 +5,15 @@ export function confirmar(
   mensaje: string,
   accion: () => void | Promise<void>
 ): void {
+  const main = document.querySelector("main");
+
+  if (!main) {
+    console.error("No se encontró el elemento <main>.");
+    return;
+  }
+
   const contenedor = document.createElement("div");
-  document.body.appendChild(contenedor);
+  main.appendChild(contenedor);
 
   const root = createRoot(contenedor);
   let cerrada = false;
@@ -30,11 +36,16 @@ export function confirmar(
           <p className="centro">{mensaje}</p>
 
           <div className="divisorx">
-            <button className="rojo" onClick={cerrar}>
+            <button
+              type="button"
+              className="rojo"
+              onClick={cerrar}
+            >
               No
             </button>
 
             <button
+              type="button"
               className="azul"
               onClick={() => {
                 cerrar();

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-
+import { confirmar } from "../utils/confirmar";
 import { evaluarMembresia, type SocioListado } from "../api/Socios";
 import { useAuth } from "../context/AuthContext";
 import { storage } from "../storage/Storage";
@@ -85,13 +85,18 @@ function Perfil({ socio }: Props) {
 
               {error && <p role="alert">{error}</p>}
 
-              <button
-                type="button"
-                className="rojo"
-                onClick={() => void handleCerrarSesion()}
-              >
-                Cerrar sesión
-              </button>
+          <button
+            type="button"
+            className="rojo"
+            onClick={() => {
+              confirmar(
+                "¿Estás seguro de que querés cerrar sesión?",
+                () => void handleCerrarSesion()
+              );
+            }}
+          >
+            Cerrar sesión
+          </button>
             </>
           ) : socio ? (
             <>

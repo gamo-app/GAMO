@@ -55,6 +55,8 @@ const mostrarNavBar =
 
   return (
     <>
+      {mostrarPresentacion && <Presentacion />}
+
       <Main>
         <Header login={login} atras={atras} salir={salir} />
 
@@ -63,7 +65,6 @@ const mostrarNavBar =
         {mostrarNavBar && <NavBar />}
       </Main>
 
-      {mostrarPresentacion && <Presentacion />}
     </>
   );
 }
