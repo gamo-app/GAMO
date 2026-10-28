@@ -2,7 +2,6 @@ import { memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import Icon from "./Icon";
-import { confirmar } from "../components/Alerta";
 import { useAuth } from "../context/AuthContext";
 
 type HeaderProps = {
@@ -16,21 +15,19 @@ function Header({
   login = false,
   salir = false,
 }: HeaderProps) {
-  const navigate = useNavigate();
-  const { logout } = useAuth();
+const navigate = useNavigate();
+const { logout } = useAuth();
 
-  function confirmarCierreSesion() {
-    confirmar(
-      "Vas a cerrar la sesión actual. ¿Querés continuar?",
-      () => {
-        void logout()
-          .then(() => navigate("/", { replace: true }))
-          .catch((error: unknown) => {
-            console.error("Error al cerrar sesión:", error);
-          });
-      }
-    );
+async function handleCerrarSesion() {
+
+  try {
+    await logout();
+    navigate("/", { replace: true });
+  } catch (error: unknown) {
+    console.error("Error al cerrar sesión:", error);
+    
   }
+}
 
   return (
     <header className={login ? "login" : ""}>
@@ -43,7 +40,7 @@ function Header({
         </>
       ) : atras ? (
         <>
-          <Icon tipo={10} tamaño={14} />
+           <Icon tipo={10} tamaño={14} />
           <button
             type="button"
             className="circuloazul2"
@@ -54,22 +51,28 @@ function Header({
         </>
       ) : salir ? (
         <>
-          <Icon tipo={10} tamaño={14} />
-          <button
-            type="button"
-            className="circuloazul2"
-            onClick={confirmarCierreSesion}
-            aria-label="Cerrar sesión"
-          >
-            <Icon tipo={18} tamaño={2} />
-          </button>
+           <Icon tipo={10} tamaño={14} />
+         <button
+          type="button"
+          className="circuloazul2"
+          onClick={() => void handleCerrarSesion()}
+          aria-label="Cerrar sesión"
+        >
+          <Icon tipo={18} tamaño={2} />
+        </button>
         </>
       ) : (
         <>
           <Icon tipo={10} tamaño={14} />
-          <Link to="/notificacion">
-            <Icon tipo={19} tamaño={3.2} />
-          </Link>
+          <div className="listax3">
+            <Link to="/notificacion">
+              <Icon tipo={19} tamaño={3.2} />
+            </Link>
+
+            <Link to="/perfil" className="perfil">
+              <Icon tipo={2} tamaño={2.6} color={0} />
+            </Link>
+          </div>
         </>
       )}
     </header>

@@ -168,10 +168,7 @@ section{
 
   }
 }*/
-.page-transition.page-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
+
 @keyframes titila {
   0%{
     opacity: 1;
@@ -183,11 +180,5 @@ section{
   100%{
     opacity: 1;
 
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .page-transition {
-    transition: none;
-    transform: none;
   }
 }

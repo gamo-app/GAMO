@@ -23,6 +23,7 @@ import Feliz from "../assets/svg/feliz.svg?raw";
 import Bienvenido from "../assets/svg/bienvenido.svg?raw";
 import Pregunta from "../assets/svg/pregunta.svg?raw";
 import Campana from "../assets/svg/campana1.svg?raw";
+import Error from "../assets/svg/error.svg?raw";
 
 interface IconProps {
   tipo?: number;
@@ -62,6 +63,7 @@ function Icon({
     Bienvenido,   //22
     Pregunta,     //23
     Campana,      //24
+    Error,        //25
   ];
 
   const colores = [

@@ -2,8 +2,8 @@ function Presentacion(){
 return(
 <>
 
-<main>
-    <section className="centro azul desaparecer" style={{zIndex:"100"}}>
+<main className="desaparecer">
+    <section className="centro azul" style={{zIndex:"1000"}}>
 <img src="logoanimable.svg" className="logoanimado" alt="" />
 
     </section>

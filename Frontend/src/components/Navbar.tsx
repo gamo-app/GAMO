@@ -8,6 +8,9 @@ function NavBar() {
 
   return (
     <footer>
+       <div className="pc contenedorazul">
+          <Icon tipo={10} tamaño={14} />
+        </div>
       <NavLink to="/home" className="icono">
         {({ isActive }) => (
           <>
@@ -50,11 +53,11 @@ function NavBar() {
         </NavLink>
       )}
 
-      <NavLink to="/perfil" className="icono">
+      <NavLink to="/buscar" className="icono">
         {({ isActive }) => (
           <>
-            <Icon tipo={2} tamaño={3} color={isActive ? 1 : 0} />
-            Usuario
+            <Icon tipo={3} tamaño={3}  color={isActive ? 1 : 0} />
+            Buscar
           </>
         )}
       </NavLink>

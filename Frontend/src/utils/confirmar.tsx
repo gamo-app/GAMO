@@ -1,13 +1,21 @@
 
 import { createRoot } from "react-dom/client";
-import Icon from "./Icon";
-export function confirmar(mensaje: string, accion: () => void) {
+import Icon from "../components/Icon";
+
+export function confirmar(
+  mensaje: string,
+  accion: () => void | Promise<void>
+): void {
   const contenedor = document.createElement("div");
   document.body.appendChild(contenedor);
 
   const root = createRoot(contenedor);
+  let cerrada = false;
 
   function cerrar() {
+    if (cerrada) return;
+    cerrada = true;
+
     root.unmount();
     contenedor.remove();
   }
@@ -15,18 +23,14 @@ export function confirmar(mensaje: string, accion: () => void) {
   function Alerta() {
     return (
       <div className="alerta-fondo">
-           <Icon tipo={23} tamaño={15} ></Icon>
-
         <div className="alerta">
+          <Icon tipo={23} tamaño={15} />
 
           <h3 className="centro">¿Estás seguro?</h3>
           <p className="centro">{mensaje}</p>
 
           <div className="divisorx">
-            <button
-              className="rojo"
-              onClick={cerrar}
-            >
+            <button className="rojo" onClick={cerrar}>
               No
             </button>
 
@@ -34,7 +38,7 @@ export function confirmar(mensaje: string, accion: () => void) {
               className="azul"
               onClick={() => {
                 cerrar();
-                accion();
+                void accion();
               }}
             >
               Sí, continuar

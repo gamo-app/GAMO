@@ -201,7 +201,14 @@ footer{
   grid-area:FOO;
   background-color: var(--blanco);
 }
-
+.contenedorazul{
+  background-color: var(--azul);
+  width: 100%;
+   height: 8vh;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+}
 section{
  grid-area:SEC;
   background-color: var(--gris);
@@ -345,7 +352,7 @@ position:relative;
 }
 .listay3 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(60vh, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(40vh, 1fr));
   justify-content: center;
   gap: 1.5vh;
   width: 100%;
@@ -403,6 +410,26 @@ position:relative;
   width: 100%;
 position:relative;
   flex-wrap: wrap;
+}
+.listax3{
+  display:flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+position:relative;
+gap: 2vh;
+  flex-wrap: wrap;
+}
+.perfil{
+  display: flex;
+  justify-content: center;
+  align-items: end;
+  width: 3.5vh;
+  height: 3.5vh;
+  border-radius: 4vh;
+  background-color: var(--siempreblanco);
+  overflow: hidden;
+
 }
 .listax2{
   display:flex;
@@ -711,7 +738,7 @@ select.blanco{
 .persistente{
   position: sticky;
   top: 0vh;
-  z-index: 100;
+  z-index: 10;
   padding-top: 2vh;
   padding-bottom: 1vh;
   background-color: var(--gris);
@@ -1006,7 +1033,19 @@ width: max-content;
   height: 100% ;
   object-fit: cover;
 }
-
+.lector-pantalla{
+  width: 100%;
+  height: 100%;
+}
+.qr-usuario{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.qr{
+  width: 100%;
+  max-width: 40vh;
+}
 /* Botón volver */
 
 .volver {
@@ -1035,7 +1074,12 @@ width: max-content;
 }
 
 /* Texto */
-
+section.escanear{
+  padding: 0;
+}
+section.escanear .bloque{
+  margin-top: 5vh;
+}
 .texto-escanear {
   position: absolute;
 

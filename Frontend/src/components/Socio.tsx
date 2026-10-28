@@ -36,7 +36,8 @@ function Socio({ socio, carga = false }: SocioProps) {
         <div className="texto2">
           <div className="listax2">
             <h4>{nombre}</h4>
-            <div className={estado === "inactivo" ? "circulo rojo" : "circulo verde"}></div>
+            {carga ? <></>: <div className={estado === "inactivo" ? "circulo rojo" : "circulo verde"}></div>}
+            
            
           </div>
          
@@ -51,7 +52,7 @@ function Socio({ socio, carga = false }: SocioProps) {
       {socio && (
         <Link
           className="botoncuadrado"
-          to={`/gestion/${socio.codigo_credencial}`}
+          to={`/perfil/${socio.codigo_credencial}`}
           aria-label={`Ver detalles de ${nombre}`}
         >
           <Icon tipo={13} tamaño={3} />

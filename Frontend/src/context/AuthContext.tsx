@@ -1,4 +1,4 @@
-import type { UsuarioSesion } from "../api/Socios.ts";
+
 import {
   createContext,
   useContext,
@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 
+import type { UsuarioSesion } from "../api/Socios";
 import {
   iniciarSesion,
   obtenerSesion,
@@ -16,7 +17,10 @@ import {
 type AuthContextType = {
   usuario: UsuarioSesion | null;
   cargando: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<UsuarioSesion>;
   logout: () => Promise<void>;
 };
 
@@ -29,10 +33,12 @@ export function AuthProvider({
 }: {
   children: ReactNode;
 }) {
-  const [usuario, setUsuario] = useState<UsuarioSesion | null>(null);
+  const [usuario, setUsuario] = useState<UsuarioSesion | null>(
+    null
+  );
   const [cargando, setCargando] = useState(true);
 
-  // Recuperar la sesión al abrir o recargar la aplicación.
+  // Recuperar la sesión automáticamente al abrir la aplicación.
   useEffect(() => {
     let activo = true;
 
@@ -61,14 +67,24 @@ export function AuthProvider({
     };
   }, []);
 
-  // El login crea las cookies; /auth/me devuelve el perfil completo.
-  async function login(email: string, password: string) {
-    await iniciarSesion(email, password);
+  // Iniciar sesión y recuperar los datos actualizados del usuario.
+  async function login(
+    email: string,
+    password: string
+  ): Promise<UsuarioSesion> {
+    await iniciarSesion(
+      email,
+      password
+    );
+
     const sesion = await obtenerSesion();
+
     setUsuario(sesion.usuario);
+
+    return sesion.usuario;
   }
 
-  // Invalidar la sesión en el backend y limpiar el estado.
+  // Cerrar sesión.
   async function logout() {
     try {
       await cerrarSesion();
@@ -79,12 +95,7 @@ export function AuthProvider({
 
   return (
     <AuthContext.Provider
-      value={{
-        usuario,
-        cargando,
-        login,
-        logout,
-      }}
+      value={{ usuario, cargando, login, logout }}
     >
       {children}
     </AuthContext.Provider>

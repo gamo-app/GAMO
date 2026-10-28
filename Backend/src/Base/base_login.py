@@ -153,7 +153,7 @@ async def obtener_datos_usuario(env, uuid_usuario: str, access_token: str):
         resultado = await (
             cliente.table("usuario")
             .select(
-                "uuid_usuario,DNI,nombre,apellido,fecha_nacimiento,"
+                "uuid_usuario,DNI,nombre,apellido,fecha_nacimiento,primer_ingreso,"
                 "rol:id_rol(id_rol,nombre,permisos)"
             )
             .eq("uuid_usuario", uuid_usuario)

@@ -81,12 +81,9 @@ export type UsuarioSesion = {
   nombre: string;
   apellido: string;
   fecha_nacimiento: string;
-  rol: {
-    id_rol: number;
-    nombre: string;
-    permisos: Record<string, boolean>;
-  } | null;
+  rol: RolUsuario,
   email: string | null;
+  primer_ingreso: Boolean | true;
 };
 
 export type LoginResponse = {
@@ -100,6 +97,25 @@ export type LoginResponse = {
 export type SesionResponse = {
   usuario: UsuarioSesion;
 };
+
+export type PermisosUsuario = {
+  administrar_asistencias: boolean;
+  administrar_clases: boolean;
+  administrar_cuotas: boolean;
+  administrar_deportes: boolean;
+  administrar_sedes: boolean;
+  administrar_socios: boolean;
+  administrar_usuarios: boolean;
+};
+
+export type RolUsuario = {
+  id_rol: number;
+  nombre: string;
+  permisos: PermisosUsuario;
+};
+
+
+
 
 export function evaluarMembresia(
   membresias: MembresiaSocio[],
