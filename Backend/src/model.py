@@ -272,6 +272,16 @@ class AsistenciaCreate(AsistenciaBase):
     pass
 
 
+class AsistenciaRegistro(BaseModel):
+    uuid_clase: UUID
+    fecha: date
+    codigo_credencial: UUID | None = None
+
+
+class AsistenciaQrEscaneo(BaseModel):
+    qr_payload: str = Field(min_length=1, max_length=100)
+
+
 class AsistenciaResponse(AsistenciaBase):
     id_asistencia: int
 

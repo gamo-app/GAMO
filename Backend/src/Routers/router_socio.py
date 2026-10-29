@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Request
 
-from auth import validar_sesion
+from auth import validar_acceso_listado_socios, validar_sesion
 from Base import base_socio as socio
 from model import SocioAltaCreate
 
@@ -27,6 +27,6 @@ async def get_planes(
 @router.get("")
 async def get_socios(
     request: Request,
-    access_token: str = Depends(validar_sesion),
+    access_token: str = Depends(validar_acceso_listado_socios),
 ):
     return await socio.get_all_socios(request.scope["env"], access_token)

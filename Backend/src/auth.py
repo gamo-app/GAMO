@@ -1,6 +1,7 @@
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException, Request
 from workers import fetch
 from supabase_config import get_supabase_config
+from Base.base_login import obtener_datos_usuario
 
 
 async def validar_sesion(request: Request) -> str:
@@ -11,7 +12,36 @@ async def validar_sesion(request: Request) -> str:
             detail="No hay una sesión activa.",
         )
 
-    await validar_jwt(request.scope["env"], access_token)
+    request.state.usuario_auth = await validar_jwt(
+        request.scope["env"],
+        access_token,
+    )
+    return access_token
+
+
+async def validar_acceso_listado_socios(
+    request: Request,
+    access_token: str = Depends(validar_sesion),
+) -> str:
+    usuario_auth = request.state.usuario_auth
+    usuario = await obtener_datos_usuario(
+        request.scope["env"],
+        usuario_auth["id"],
+        access_token,
+    )
+
+    rol = (usuario or {}).get("rol") or {}
+    nombre_rol = rol.get("nombre", "")
+    if (
+        not isinstance(nombre_rol, str)
+        or not nombre_rol.strip()
+        or nombre_rol.strip().casefold() == "socio"
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="No tenés permiso para consultar el listado de socios.",
+        )
+
     return access_token
 
 

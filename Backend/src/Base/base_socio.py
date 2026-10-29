@@ -24,7 +24,7 @@ async def get_all_planes(env, access_token: str):
     finally:
         await supabase.postgrest.aclose()
 
-
+#limpiar esta gilada porque no sirve 
 async def crear_usuario_socio(env, datos: SocioAltaCreate):
     url, key = get_supabase_config(env)
     supabase = await create_async_client(url, key)

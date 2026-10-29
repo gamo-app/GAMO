@@ -29,7 +29,7 @@ FastAPI se utiliza para:
                     │ Python + FastAPI│
                     └────────┬────────┘
                              │
-                             │ REST API
+                             │ Supabase Python SDK
                              ▼
                     ┌─────────────────┐
                     │    Supabase     │
@@ -133,9 +133,13 @@ El proyecto utiliza Pywrangler para preparar las dependencias Python necesarias 
 
 ### Supabase
 
-Supabase proporciona la base de datos PostgreSQL y sus APIs.
+Supabase proporciona PostgreSQL, autenticación y otros servicios de datos. El
+backend accede a estos servicios mediante el SDK oficial de Supabase para
+Python. No se deben construir manualmente solicitudes HTTP para acceder a las
+tablas.
 
-La mayoría de las operaciones contra Supabase utilizan `workers.fetch` y su API REST. La consulta de los datos del usuario autenticado usa el cliente asíncrono del SDK de Supabase para expresar el filtro y la relación con el rol de forma más directa.
+FastAPI sigue exponiendo los endpoints HTTP de la aplicación; el acceso a los
+datos se realiza desde el backend mediante el SDK.
 
 ---
 
@@ -177,8 +181,8 @@ Qué hace cada comando:
 - **FastAPI**: define los endpoints, valida los datos recibidos y publica la
   documentación OpenAPI/Swagger en `/docs`.
 - **Supabase Python SDK**: cliente oficial para acceder a Supabase desde
-  Python. La consulta de los datos del usuario autenticado utiliza su cliente
-  asíncrono; otras operaciones siguen llamando a la API REST con `workers.fetch`.
+  Python. Utilízalo para consultar y modificar datos, invocar funciones y
+  trabajar con Supabase Auth.
 - **workers-py**: herramientas de desarrollo de Cloudflare para preparar y
   ejecutar Python Workers.
 
@@ -272,6 +276,66 @@ No se deben almacenar credenciales sensibles directamente en el código fuente n
 
 Los endpoints se organizan mediante routers de FastAPI.
 
+## Asistencia con QR estático por sede
+
+El QR impreso contiene un payload estable por sede. Al escanearlo, el backend
+usa la hora de Argentina (`UTC-03:00`) para encontrar la clase activa de esa
+sede; el cliente no envía `uuid_clase` ni `fecha`.
+
+1. Un usuario con rol `Admin` o `Profesor` obtiene el contenido que luego se
+   codifica en la imagen QR:
+
+   ```http
+   GET /asistencia/qr/sede/{id_sede}
+   ```
+
+   La respuesta incluye `qr_payload`, por ejemplo
+   `GAMO:ASISTENCIA:SEDE:2`. El QR físico puede ser estático.
+
+2. Un usuario con rol `Socio` escanea el QR y envía el contenido:
+
+   ```http
+   POST /asistencia/qr/escaneo
+   Content-Type: application/json
+   ```
+
+   ```json
+   {
+     "qr_payload": "GAMO:ASISTENCIA:SEDE:2"
+   }
+   ```
+
+   Ambas rutas requieren la cookie de sesión. El backend valida al socio, la
+   sede y que haya exactamente una clase activa según el día y hora actuales.
+   Devuelve `404` si no hay clase activa y `409` si hay varias o la asistencia
+   ya existe ese día.
+
+La tabla `clase` modela horarios recurrentes. Para horarios locales conviene
+que `hora_inicio` y `hora_fin` sean `time without time zone`; si actualmente
+son `time with time zone`, se pueden migrar preservando la hora local:
+
+```sql
+ALTER TABLE public.clase
+  ALTER COLUMN hora_inicio TYPE time without time zone
+    USING hora_inicio::time,
+  ALTER COLUMN hora_fin TYPE time without time zone
+    USING hora_fin::time;
+```
+
+Para evitar duplicados ante peticiones simultáneas, comprobá primero que no
+haya filas duplicadas y luego agregá esta restricción:
+
+```sql
+CREATE UNIQUE INDEX asistencia_unica_por_clase_socio_fecha
+ON public.asistencia (uuid_clase, codigo_credencial, fecha);
+```
+
+Las políticas RLS deben permitir al socio autenticado leer las sedes y los
+horarios de clase necesarios para validar el escaneo, consultar sus propias
+asistencias y crear una fila únicamente con su propia credencial. El QR estático
+identifica la sede, pero no demuestra por sí solo que el escaneo ocurra
+físicamente allí.
+
 Ejemplo:
 
 ```text
@@ -326,246 +390,33 @@ La documentación interactiva permite probar estos endpoints desde:
 
 ---
 
-# Consultas a Supabase REST
+# Acceso a Supabase desde Python
 
-El backend utiliza la API REST de Supabase para realizar consultas sobre PostgreSQL.
+Las operaciones de base de datos se realizan con el cliente del SDK de
+Supabase. Inicialízalo con `get_supabase(env)` y las variables
+`SUPABASE_URL` y `SUPABASE_KEY`, configuradas para el Worker como se explica en
+[Configuración de Supabase](#configuración-de-supabase).
 
-La estructura general es:
+Con el cliente inicializado, se pueden realizar operaciones como:
 
-```text
-https://<PROYECTO>.supabase.co/rest/v1/<TABLA>
+```python
+resultado = supabase.table("socio").select("*").execute()
+
+resultado = (
+    supabase.table("usuario")
+    .select("email, nombre, apellido")
+    .eq("activo", True)
+    .execute()
+)
+
+resultado = supabase.table("notificacion").insert(datos).execute()
+
+resultado = supabase.rpc("nombre_de_la_funcion", parametros).execute()
 ```
 
-Por ejemplo:
-
-```text
-/rest/v1/grupo_usuario
-```
-
-Para seleccionar todas las columnas:
-
-```text
-/rest/v1/grupo_usuario?select=*
-```
-
-Esto equivale conceptualmente a:
-
-```sql
-SELECT *
-FROM grupo_usuario;
-```
-
----
-
-## Operadores de Supabase REST
-
-Supabase REST utiliza operadores específicos para representar condiciones SQL.
-
-| SQL | Supabase REST |
-|---|---|
-| `=` | `eq.` |
-| `!=` | `neq.` |
-| `>` | `gt.` |
-| `>=` | `gte.` |
-| `<` | `lt.` |
-| `<=` | `lte.` |
-| `IS NULL` | `is.null` |
-| `IS NOT NULL` | `not.is.null` |
-| `LIKE` | `like.` |
-| `ILIKE` | `ilike.` |
-| `IN (...)` | `in.(...)` |
-
-### Ejemplos
-
-Buscar un grupo específico:
-
-```text
-/rest/v1/grupo_usuario?id_grupo=eq.1
-```
-
-Equivalente a:
-
-```sql
-SELECT *
-FROM grupo_usuario
-WHERE id_grupo = 1;
-```
-
-Buscar grupos con nivel mayor o igual a 80:
-
-```text
-/rest/v1/grupo_usuario?nivel=gte.80
-```
-
-Equivalente a:
-
-```sql
-SELECT *
-FROM grupo_usuario
-WHERE nivel >= 80;
-```
-
-Buscar personas cuyo nombre contenga `"juan"` sin distinguir mayúsculas/minúsculas:
-
-```text
-/rest/v1/persona?nombre=ilike.*juan*
-```
-
-Equivalente conceptualmente a:
-
-```sql
-SELECT *
-FROM persona
-WHERE nombre ILIKE '%juan%';
-```
-
----
-
-## Seleccionar columnas
-
-En lugar de:
-
-```text
-/rest/v1/persona?select=*
-```
-
-se pueden solicitar columnas específicas:
-
-```text
-/rest/v1/persona?select=id_persona,nombre,apellido
-```
-
-Equivalente a:
-
-```sql
-SELECT id_persona, nombre, apellido
-FROM persona;
-```
-
----
-
-## Ordenar resultados
-
-Ascendente:
-
-```text
-/rest/v1/persona?select=*&order=apellido.asc
-```
-
-Descendente:
-
-```text
-/rest/v1/persona?select=*&order=apellido.desc
-```
-
-Equivalente a:
-
-```sql
-SELECT *
-FROM persona
-ORDER BY apellido DESC;
-```
-
----
-
-## Limitar resultados
-
-```text
-/rest/v1/persona?select=*&limit=10
-```
-
-Equivalente a:
-
-```sql
-SELECT *
-FROM persona
-LIMIT 10;
-```
-
----
-
-## Combinar filtros
-
-Los parámetros pueden combinarse para representar condiciones `AND`.
-
-```text
-/rest/v1/usuario?id_grupo=eq.2&id_sede=eq.5
-```
-
-Equivalente a:
-
-```sql
-SELECT *
-FROM usuario
-WHERE id_grupo = 2
-  AND id_sede = 5;
-```
-
----
-
-# Relaciones entre tablas
-
-Supabase REST puede utilizar las relaciones definidas mediante claves foráneas para obtener información relacionada.
-
-Por ejemplo, `usuario` tiene una relación con `persona` mediante:
-
-```text
-usuario.id_persona
-        ↓
-persona.id_persona
-```
-
-Se puede solicitar:
-
-```text
-/rest/v1/usuario?select=*,persona(*)
-```
-
-También se pueden seleccionar solamente determinadas columnas:
-
-```text
-/rest/v1/usuario?select=email,persona(nombre,apellido,dni)
-```
-
-Esto permite obtener información relacionada sin tener que escribir manualmente un `JOIN` SQL para consultas sencillas.
-
----
-
-# ¿Cuándo utilizar SQL?
-
-Las consultas REST son apropiadas para operaciones simples como:
-
-- Obtener registros.
-- Filtrar registros.
-- Ordenar resultados.
-- Limitar resultados.
-- Insertar registros.
-- Actualizar registros.
-- Eliminar registros.
-- Obtener relaciones sencillas.
-
-Para consultas complejas, se recomienda utilizar **SQL, Views o funciones RPC** en Supabase.
-
-Por ejemplo:
-
-```sql
-SELECT
-    s.id_socio,
-    p.nombre,
-    p.apellido,
-    COUNT(a.id_asistencia) AS asistencias
-FROM socio s
-JOIN persona p
-    ON s.id_persona = p.id_persona
-LEFT JOIN asistencia a
-    ON s.id_socio = a.id_socio
-GROUP BY
-    s.id_socio,
-    p.nombre,
-    p.apellido;
-```
-
-Este tipo de consultas puede implementarse mediante una `VIEW` o una función SQL/RPC y luego ser consumida desde el backend.
+Para consultas complejas, utiliza una vista o una función SQL/RPC definida en
+Supabase y consúmela con el SDK. Aplica las políticas RLS necesarias y valida
+los permisos de la operación; el SDK no reemplaza esos controles.
 
 ---
 
@@ -637,6 +488,7 @@ uv run pywrangler sync
 
 El backend se encuentra actualmente en desarrollo.
 
-La API se está construyendo progresivamente mediante routers de FastAPI y operaciones contra Supabase REST.
+La API se está construyendo progresivamente mediante routers de FastAPI y el
+SDK de Supabase para las operaciones de datos.
 
 Los endpoints y modelos se irán incorporando a este documento a medida que se complete cada módulo.
