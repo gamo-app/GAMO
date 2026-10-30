@@ -102,7 +102,7 @@ async def login( env, datos: LoginData, response: Response, ):
                 error_supabase = {}
 
             codigo_error = (
-                error_supabase.get("code")
+                error_supabase.get("error_code", error_supabase.get("code"))
                 if isinstance(error_supabase, dict)
                 else None
             )
