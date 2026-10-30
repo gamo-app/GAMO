@@ -101,22 +101,48 @@ async def login( env, datos: LoginData, response: Response, ):
             except json.JSONDecodeError:
                 error_supabase = {}
 
-            codigo_error = (
-                error_supabase.get("error_code", error_supabase.get("code"))
-                if isinstance(error_supabase, dict)
-                else None
-            )
+            valores_error = ()
+            if isinstance(error_supabase, dict):
+                valores_error = (
+                    error_supabase.get("error_code"),
+                    error_supabase.get("code"),
+                    error_supabase.get("error"),
+                    error_supabase.get("error_description"),
+                    error_supabase.get("msg"),
+                    error_supabase.get("message"),
+                )
+
             codigos_conocidos = {
                 "email_not_confirmed",
                 "invalid_credentials",
+                "invalid_api_key",
                 "too_many_requests",
                 "user_banned",
             }
-            if (
-                not isinstance(codigo_error, str)
-                or codigo_error not in codigos_conocidos
-            ):
-                codigo_error = "other"
+            codigo_error = "other"
+            for valor_error in valores_error:
+                if not isinstance(valor_error, str):
+                    continue
+
+                codigo_normalizado = valor_error.strip().lower()
+                if codigo_normalizado in codigos_conocidos:
+                    codigo_error = codigo_normalizado
+                    break
+                if codigo_normalizado in {
+                    "invalid login credentials",
+                    "invalid_grant",
+                }:
+                    codigo_error = "invalid_credentials"
+                    break
+                if codigo_normalizado in {
+                    "invalid api key",
+                    "no api key found",
+                }:
+                    codigo_error = "invalid_api_key"
+                    break
+                if codigo_normalizado == "email not confirmed":
+                    codigo_error = "email_not_confirmed"
+                    break
 
             print(
                 "Supabase Auth rechazó el login: "
