@@ -4,6 +4,9 @@ import { alerta } from "../utils/alerta";
 import type { 
   PlanSocio, 
   SocioListado,
+  ClaseAsistencia,
+  SedeAsistencia,
+  AsistenciaListado,
   SesionResponse,
   LoginResponse,
   CrearSocioResponse,
@@ -116,27 +119,40 @@ export async function iniciarSesion(
   });
 }
 
-export async function registrarAsistencia(
-  idUsuario: string
-): Promise<boolean> {
-  try {
-    await post(
-      "/asistencia",
-      { uuid_usuario: idUsuario },
-      {
-        mostrarCarga: true,
-        mostrarError: false,
-      }
-    );
+export async function registrarAsistencia(datos: {
+  uuid_clase: string;
+  fecha: string;
+  codigo_credencial: string;
+}): Promise<void> {
+  await post("/asistencia", datos, { mostrarCarga: true });
+  alerta("¡Asistencia registrada correctamente!", "exito");
+}
 
-    alerta("¡Asistencia registrada correctamente!");
-    return true;
-  } catch (error) {
-    console.error("Error al registrar la asistencia:");
+export async function registrarAsistenciaQr(
+  qr_payload: string
+): Promise<void> {
+  await post("/asistencia/qr/escaneo", { qr_payload }, {
+    mostrarCarga: true,
+  });
+  alerta("¡Asistencia registrada correctamente!", "exito");
+}
 
-    alerta("No se pudo registrar la asistencia.");
-    return false;
-  }
+export function obtenerMisAsistencias(): Promise<AsistenciaListado[]> {
+  return get<AsistenciaListado[]>("/asistencia/mis-asistencias");
+}
+
+export function obtenerQrSede(
+  idSede: number
+): Promise<{ qr_payload: string }> {
+  return get<{ qr_payload: string }>(`/asistencia/qr/sede/${idSede}`);
+}
+
+export function obtenerClasesAsistencia(): Promise<ClaseAsistencia[]> {
+  return get<ClaseAsistencia[]>("/clase");
+}
+
+export function obtenerSedesAsistencia(): Promise<SedeAsistencia[]> {
+  return get<SedeAsistencia[]>("/sede");
 }
 
 

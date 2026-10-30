@@ -15,7 +15,12 @@ export default defineConfig({
         target: 'http://localhost:8787',
         changeOrigin: true,
         secure: false,
-      }
+      },
+      '^/(asistencia|clase|deporte|profesor|representante|rol|sede|usuario)(?:/|$)': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+        secure: false,
+      },
     }
   }
 })

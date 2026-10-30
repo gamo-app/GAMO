@@ -29,7 +29,7 @@ FastAPI se utiliza para:
                     │ Python + FastAPI│
                     └────────┬────────┘
                              │
-                             │ REST API
+                             │ Supabase Python SDK
                              ▼
                     ┌─────────────────┐
                     │    Supabase     │
@@ -135,7 +135,7 @@ El proyecto utiliza Pywrangler para preparar las dependencias Python necesarias 
 
 Supabase proporciona la base de datos PostgreSQL y sus APIs.
 
-La mayoría de las operaciones contra Supabase utilizan `workers.fetch` y su API REST. La consulta de los datos del usuario autenticado usa el cliente asíncrono del SDK de Supabase para expresar el filtro y la relación con el rol de forma más directa.
+Las consultas de datos utilizan el cliente asíncrono del SDK de Supabase y el token del usuario para respetar RLS. `workers.fetch` se utiliza para las operaciones de autenticación de Supabase.
 
 ---
 
@@ -177,8 +177,8 @@ Qué hace cada comando:
 - **FastAPI**: define los endpoints, valida los datos recibidos y publica la
   documentación OpenAPI/Swagger en `/docs`.
 - **Supabase Python SDK**: cliente oficial para acceder a Supabase desde
-  Python. La consulta de los datos del usuario autenticado utiliza su cliente
-  asíncrono; otras operaciones siguen llamando a la API REST con `workers.fetch`.
+  Python. Se utiliza para consultar y modificar datos respetando las políticas
+  RLS del usuario autenticado.
 - **workers-py**: herramientas de desarrollo de Cloudflare para preparar y
   ejecutar Python Workers.
 
@@ -637,6 +637,15 @@ uv run pywrangler sync
 
 El backend se encuentra actualmente en desarrollo.
 
-La API se está construyendo progresivamente mediante routers de FastAPI y operaciones contra Supabase REST.
+La API se está construyendo progresivamente mediante routers de FastAPI y el SDK de Supabase.
+
+## Asistencia y QR por sede
+
+- `GET /asistencia/mis-asistencias` devuelve las asistencias del socio autenticado.
+- `POST /asistencia` permite a `Admin`, `Profesor` y `Representante` registrar una asistencia manual. Recibe `uuid_clase`, `fecha` y `codigo_credencial`.
+- `GET /asistencia/qr/sede/{id_sede}` permite a `Admin` y `Profesor` obtener el payload `GAMO:ASISTENCIA:SEDE:{id_sede}` que se codifica como QR.
+- `POST /asistencia/qr/escaneo` permite a un `Socio` registrar su asistencia enviando ese payload. El backend determina la clase activa usando la hora de Argentina.
+
+El QR identifica una sede, no prueba por sí solo que el escaneo ocurra físicamente allí. Las políticas RLS deben permitir consultar las sedes y clases necesarias y limitar la lectura y creación de asistencias a los registros autorizados.
 
 Los endpoints y modelos se irán incorporando a este documento a medida que se complete cada módulo.

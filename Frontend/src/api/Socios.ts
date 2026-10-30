@@ -29,6 +29,29 @@ export type SocioListado = {
   membresias: MembresiaSocio[];
 };
 
+export type ClaseAsistencia = {
+  uuid_clase: string;
+  id_sede: number;
+  id_deporte: number;
+  id_profesor: number;
+  dia_de_semana: string;
+  hora_inicio: string;
+  hora_fin: string;
+  cupo: number;
+};
+
+export type SedeAsistencia = {
+  id_sede: number;
+  nombre: string;
+};
+
+export type AsistenciaListado = {
+  id_asistencia: number;
+  uuid_clase: string;
+  codigo_credencial: string;
+  fecha: string;
+};
+
 export type EstadoSocio =
   | "activo"
   | "pendiente"
