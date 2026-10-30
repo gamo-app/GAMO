@@ -101,7 +101,7 @@ function Agregarsocio() {
         fecha_fin: formulario.fecha_fin,
       });
 
-      navigate("/socios");
+      navigate("/gestion");
     } catch (error) {
       console.error("Error al crear socio:", error);
       setError(
@@ -269,7 +269,7 @@ function Agregarsocio() {
               </p>
             )}
 
-            <Link to="/socios" className="rojo">
+            <Link to="/gestion" className="rojo">
               Cancelar
             </Link>
           </div>

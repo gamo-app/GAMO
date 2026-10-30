@@ -135,7 +135,7 @@ function Perfil({ socio }: Props) {
                 </div>
               </div>
 
-              <Link to="/socios" className="azul2">
+              <Link to="/gestion" className="azul2">
                 Volver a socios
               </Link>
             </>
