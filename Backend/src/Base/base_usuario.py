@@ -3,7 +3,6 @@ from supabase_config import get_supabase_config
 from fastapi import HTTPException
 from model import UsuarioCreate
 
-#ya no exciste mail dentro de la tabla usuario normal  
 async def get_user_from_email(env, email: str, access_token: str):
     url, key = get_supabase_config(env)
     try:
@@ -24,7 +23,6 @@ async def get_user_from_email(env, email: str, access_token: str):
             )
     return response.data
 
-#cambiar por rol
 async def get_user_group(env, user_id: str, access_token: str):
     url, key = get_supabase_config(env)
     try:

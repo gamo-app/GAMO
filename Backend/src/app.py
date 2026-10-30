@@ -1,5 +1,4 @@
 from fastapi import Depends, FastAPI
-from contextlib import asynccontextmanager
 from Routers import (
     router_asistencia as asistencia,
     router_clase as clase,
@@ -13,17 +12,10 @@ from Routers import (
     router_login as login,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI
-from contextlib import asynccontextmanager
 from auth import validar_sesion
 
 
-@asynccontextmanager
-async def lifespan(app:FastAPI):
-    yield
-
-
-app = FastAPI(title="GAMO API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="GAMO API", version="0.1.0")
 
 
 app.add_middleware(
@@ -85,6 +77,4 @@ app.include_router(socio.router,
 app.include_router(usuario.router,
                    prefix='/usuario',
                    tags=['Usuario'],
-                    # dependencies=[Depends(validar_sesion)],
                    responses={404: {"Usuario": "Not Found"}})
-

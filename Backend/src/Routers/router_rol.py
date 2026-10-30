@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Request
 from Base import base_rol as rol
-from auth import validar_sesion
+from auth import validar_acceso_administrativo
 
 router = APIRouter()
 
@@ -8,6 +8,6 @@ router = APIRouter()
 @router.get("")
 async def get_roles(
     request: Request,
-    access_token: str = Depends(validar_sesion),
+    access_token: str = Depends(validar_acceso_administrativo),
 ):
     return await rol.get_all_rol(request.scope["env"], access_token)
