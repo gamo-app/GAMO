@@ -20,6 +20,11 @@ type ApiOptions = RequestInit & {
   mostrarError?: boolean;
 };
 
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ??
+  (import.meta.env.DEV ? "" : "https://gamo.gamo-app-com.workers.dev")
+).replace(/\/+$/, "");
+
 export async function api<T>(
   endpoint: string,
   options?: ApiOptions
@@ -33,7 +38,7 @@ export async function api<T>(
   const cerrarCarga = mostrarCarga ? carga() : undefined;
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...requestOptions,
       credentials: "include",
       headers: {
