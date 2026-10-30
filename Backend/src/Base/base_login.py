@@ -96,6 +96,32 @@ async def login( env, datos: LoginData, response: Response, ):
         )
 
         if not respuesta.ok:
+            try:
+                error_supabase = json.loads(await respuesta.text())
+            except json.JSONDecodeError:
+                error_supabase = {}
+
+            codigo_error = (
+                error_supabase.get("code")
+                if isinstance(error_supabase, dict)
+                else None
+            )
+            codigos_conocidos = {
+                "email_not_confirmed",
+                "invalid_credentials",
+                "too_many_requests",
+                "user_banned",
+            }
+            if (
+                not isinstance(codigo_error, str)
+                or codigo_error not in codigos_conocidos
+            ):
+                codigo_error = "other"
+
+            print(
+                "Supabase Auth rechazó el login: "
+                f"status={respuesta.status}, code={codigo_error}"
+            )
             # No revelar si falló el correo o la contraseña.
             raise HTTPException(
                 status_code=401,
