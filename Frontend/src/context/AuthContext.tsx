@@ -14,6 +14,23 @@ import {
   cerrarSesion,
 } from "../api/Api";
 
+function sincronizarUsuarioAndroid(usuario: UsuarioSesion | null) {
+  const androidApp = window.AndroidApp;
+  if (!androidApp) return;
+
+  if (usuario) {
+    androidApp.guardarUsuarioSesion(JSON.stringify({
+      uuid_usuario: usuario.uuid_usuario,
+      nombre: usuario.nombre,
+      apellido: usuario.apellido,
+      email: usuario.email,
+      rol: usuario.rol?.nombre ?? "",
+    }));
+  } else {
+    androidApp.limpiarUsuarioSesion();
+  }
+}
+
 type AuthContextType = {
   usuario: UsuarioSesion | null;
   cargando: boolean;
@@ -48,10 +65,12 @@ export function AuthProvider({
 
         if (activo) {
           setUsuario(sesion.usuario);
+          sincronizarUsuarioAndroid(sesion.usuario);
         }
       } catch {
         if (activo) {
           setUsuario(null);
+          sincronizarUsuarioAndroid(null);
         }
       } finally {
         if (activo) {
@@ -76,6 +95,7 @@ export function AuthProvider({
 
   const sesion = await obtenerSesion();
   storage.set("usuarioSesion", sesion.usuario);
+  sincronizarUsuarioAndroid(sesion.usuario);
   setUsuario(sesion.usuario);
 
   return sesion.usuario;
@@ -87,6 +107,7 @@ export function AuthProvider({
     await cerrarSesion();
   } finally {
     storage.remove("usuarioSesion");
+    sincronizarUsuarioAndroid(null);
     setUsuario(null);
   }
 }
