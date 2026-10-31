@@ -34,11 +34,11 @@ function NavBar() {
       </NavLink>
 
       {esSocio ? (
-        <NavLink to="/buscar" className="icono">
+        <NavLink to="/perfil" className="icono">
         {({ isActive }) => (
           <>
-            <Icon tipo={3} tamaño={3}  color={isActive ? 1 : 0} />
-            Buscar
+            <Icon tipo={2} tamaño={3}  color={isActive ? 1 : 0} />
+            Perfil
           </>
         )}
       </NavLink>

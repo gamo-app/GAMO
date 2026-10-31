@@ -15,8 +15,10 @@ function Header({
   login = false,
   salir = false,
 }: HeaderProps) {
+
 const navigate = useNavigate();
-const { logout } = useAuth();
+const { logout, usuario } = useAuth();
+const esSocio = usuario?.rol?.nombre.toLocaleLowerCase() === "socio";
 
 async function handleCerrarSesion() {
 
@@ -69,9 +71,9 @@ async function handleCerrarSesion() {
               <Icon tipo={19} tamaño={3.2} />
             </Link>
 
-            <Link to="/perfil" className="perfil">
+            {!esSocio ? <Link to="/perfil" className="perfil">
               <Icon tipo={2} tamaño={2.6} color={0} />
-            </Link>
+            </Link> : <></> }
           </div>
         </>
       )}
