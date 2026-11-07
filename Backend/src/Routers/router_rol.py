@@ -1,7 +1,7 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request
 from Base import base_rol as rol
-from Routers import router_exportacion
+from Routers import router_exportacion, router_importacion
 from auth import validar_sesion
 from model import ListadoUsuariosResponse
 
@@ -75,3 +75,7 @@ async def get_usuarios_filtrados_por_rol(
 # La exportación a XLSX/PDF está en router_exportacion.py. Se publica acá para que las URLs
 # sigan siendo /rol/exportar/xlsx y /rol/exportar/pdf (con la sesión que ya exige /rol).
 router.include_router(router_exportacion.router, prefix="/exportar")
+
+# La importación de socios desde .csv/.xlsx está en router_importacion.py y se publica igual:
+# /rol/importar/plantilla y /rol/importar/socios.
+router.include_router(router_importacion.router, prefix="/importar")

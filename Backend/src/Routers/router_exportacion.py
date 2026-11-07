@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
@@ -11,6 +12,7 @@ from auth import validar_sesion
 
 # router_rol.py lo publica bajo /rol/exportar: GET /rol/exportar/xlsx y GET /rol/exportar/pdf.
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -68,6 +70,15 @@ def _filtros_aplicados(
     return filtros
 
 
+def _generar(generador, usuarios: list, filtros: dict[str, str], formato: str):
+    """Arma el archivo. Si falla responde un error claro en JSON en vez de un 500 sin detalle."""
+    try:
+        return generador(usuarios, filtros)
+    except Exception:
+        logger.exception("Error al generar el archivo %s de socios", formato)
+        raise HTTPException(status_code=500, detail=f"No se pudo generar el archivo {formato}.")
+
+
 def _respuesta_descarga(contenido: bytes, media_type: str, filename: str) -> Response:
     return Response(
         content=contenido,
@@ -115,7 +126,7 @@ async def exportar_usuarios_xlsx(
         request, access_token, estado, id_sede, buscar, id_plan, uuid_clase
     )
     filtros = _filtros_aplicados(usuarios, estado, id_sede, id_plan, buscar, uuid_clase)
-    archivo_xlsx = generar_xlsx_socios(usuarios, filtros)
+    archivo_xlsx = _generar(generar_xlsx_socios, usuarios, filtros, "XLSX")
     clase = usuarios[0].clase if (uuid_clase and usuarios) else None
     filename = nombre_archivo_exportacion(clase, estado, "xlsx")
     return _respuesta_descarga(archivo_xlsx.getvalue(), XLSX_MEDIA_TYPE, filename)
@@ -164,7 +175,7 @@ async def exportar_usuarios_pdf(
             ),
         )
     filtros = _filtros_aplicados(usuarios, estado, id_sede, id_plan, buscar, uuid_clase)
-    archivo_pdf = generar_pdf_socios(usuarios, filtros)
+    archivo_pdf = _generar(generar_pdf_socios, usuarios, filtros, "PDF")
     clase = usuarios[0].clase if (uuid_clase and usuarios) else None
     filename = nombre_archivo_exportacion(clase, estado, "pdf")
     return _respuesta_descarga(archivo_pdf.getvalue(), "application/pdf", filename)
