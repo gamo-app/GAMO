@@ -69,3 +69,15 @@ python_modules/
 __pycache__/
 *.pyc
 pyrightconfig.json
+
+node_modules/
+python_modules/
+.venv-workers/
+.wrangler/
+
+node_modules/
+python_modules/
+.venv/
+.venv-workers/
+.wrangler/
+__pycache__/s

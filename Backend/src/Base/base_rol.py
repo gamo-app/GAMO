@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 import logging
 import math
@@ -22,9 +22,14 @@ from model import (
 logger = logging.getLogger(__name__)
 
 DIAS_PARA_CONSIDERAR_MOROSO = 7
+LOTE_EXPORTACION = 1000
+MAX_FILAS_EXPORTACION = 20000  # tope de seguridad del bucle de lotes de la exportación
+
+# El servidor corre en UTC; Argentina no tiene horario de verano (UTC-3 fijo).
+ZONA_AR = timezone(timedelta(hours=-3))
 
 ROLES_VALIDOS = {"socio", "profesor", "representante", "administrador"}
-ESTADOS_VALIDOS = {"activo", "inactivo", "suspendido", "moroso", "al_dia", "pendiente"}
+ESTADOS_VALIDOS = {"activo", "inactivo", "moroso", "al_dia", "pendiente"}
 
 MAPA_ROLES = {
     "socio": "socio",
@@ -43,8 +48,6 @@ MAPA_ESTADOS = {
     "activos": "activo",
     "inactivo": "inactivo",
     "inactivos": "inactivo",
-    "suspendido": "suspendido",
-    "suspendidos": "suspendido",
     "moroso": "moroso",
     "morosos": "moroso",
     "al dia": "al_dia",
@@ -58,8 +61,6 @@ async def get_all_rol(env, access_token: str):
     url, key = get_supabase_config(env)
     try:
         supabase = await create_async_client(url, key)
-
-        # Usar el token del usuario para respetar las políticas RLS
         supabase.postgrest.auth(access_token)
 
         response = (
@@ -75,10 +76,6 @@ async def get_all_rol(env, access_token: str):
         )
     return response.data
 
-
-# ---------------------------------------------------------------------------
-# Funciones auxiliares de filtrado
-# ---------------------------------------------------------------------------
 
 async def _error_upstream(response, mensaje: str) -> HTTPException:
     try:
@@ -177,6 +174,31 @@ def _ultimo_pago(pagos: Any) -> dict[str, Any]:
     return max(lista, key=lambda p: p.get("id_pago") or 0)
 
 
+def _ultima_asistencia(asistencias: Any) -> dict[str, Any]:
+    lista = _lista(asistencias)
+    if not lista:
+        return {}
+    return max(lista, key=lambda a: a.get("fecha") or "")
+
+
+def _formatear_horario_clase(clase_data: dict[str, Any]) -> str | None:
+    if not clase_data:
+        return None
+    dia = clase_data.get("dia_de_semana")
+    h_ini = str(clase_data.get("hora_inicio") or "")[:5]
+    h_fin = str(clase_data.get("hora_fin") or "")[:5]
+    deporte_cls = _primero(clase_data.get("deporte")).get("nombre")
+
+    horario = f"{dia} {h_ini} a {h_fin}".strip() if dia else None
+    if deporte_cls and horario:
+        return f"{deporte_cls} - {horario}"
+    return horario or deporte_cls
+
+
+def _hoy_ar() -> date:
+    return datetime.now(ZONA_AR).date()
+
+
 def _calcular_estado_membresia(
     membresia_data: dict[str, Any], es_socio: bool
 ) -> tuple[str, str | None, bool]:
@@ -192,7 +214,7 @@ def _calcular_estado_membresia(
     except ValueError:
         return "activo", None, False
 
-    dias_vencido = (date.today() - fecha_fin).days
+    dias_vencido = (_hoy_ar() - fecha_fin).days
     if dias_vencido <= 0:
         return "activo", EstadoDePagoSocioEnum.al_dia.value, False
     if dias_vencido > DIAS_PARA_CONSIDERAR_MOROSO:
@@ -200,15 +222,36 @@ def _calcular_estado_membresia(
     return "activo", EstadoDePagoSocioEnum.pendiente.value, False
 
 
+def _cumple_filtro_estado(
+    usuario: UsuarioFiltradoResponse, estado_norm: str | None
+) -> bool:
+    if not estado_norm:
+        return True
+    if estado_norm in ("activo", "inactivo"):
+        return usuario.estado == estado_norm
+    if estado_norm == "al_dia":
+        return usuario.estado_cuota == EstadoDePagoSocioEnum.al_dia.value
+    if estado_norm == "moroso":
+        return usuario.estado_cuota == EstadoDePagoSocioEnum.moroso.value
+    if estado_norm == "pendiente":
+        return usuario.estado_cuota == EstadoDePagoSocioEnum.pendiente.value
+    return True
+
+
 def _armar_usuario_filtrado(fila: dict[str, Any]) -> UsuarioFiltradoResponse:
     rol_data = _primero(fila.get("rol"))
     socio_data = _primero(fila.get("socio"))
     profesor_data = _primero(fila.get("profesor"))
     representante_data = _primero(profesor_data.get("representante"))
-    deporte_data = _primero(representante_data.get("deporte"))
+    deporte_rep = _primero(representante_data.get("deporte"))
 
-    clase_data = _primero(profesor_data.get("clase"))
-    sede_data = _primero(clase_data.get("sede"))
+    clase_prof = _primero(profesor_data.get("clase"))
+    asistencia_actual = _ultima_asistencia(socio_data.get("asistencia"))
+    clase_socio = _primero(asistencia_actual.get("clase"))
+    clase_activa = clase_socio or clase_prof
+
+    sede_data = _primero(clase_activa.get("sede")) or _primero(clase_prof.get("sede"))
+    deporte_clase = _primero(clase_activa.get("deporte"))
 
     membresia_actual = _ultima_membresia(socio_data.get("membresia"))
     plan_data = _primero(membresia_actual.get("plan"))
@@ -219,9 +262,12 @@ def _armar_usuario_filtrado(fila: dict[str, Any]) -> UsuarioFiltradoResponse:
         membresia_actual, es_socio
     )
 
+    descuento = Decimal(str(membresia_actual.get("porcentaje_descuento") or 0))
     monto = pago_actual.get("monto")
     if monto is None and plan_data.get("precio_semanal") is not None:
-        monto = Decimal(str(plan_data["precio_semanal"]))
+        precio_base = Decimal(str(plan_data["precio_semanal"]))
+        factor = (Decimal("100") - descuento) / Decimal("100")
+        monto = (precio_base * factor).quantize(Decimal("0.01"))
     elif monto is not None:
         monto = Decimal(str(monto))
 
@@ -250,11 +296,102 @@ def _armar_usuario_filtrado(fila: dict[str, Any]) -> UsuarioFiltradoResponse:
         es_moroso=es_moroso,
         id_profesor=profesor_data.get("id_profesor"),
         id_representante=representante_data.get("id_representante"),
-        id_deporte=deporte_data.get("id_deporte"),
-        deporte=deporte_data.get("nombre"),
+        id_deporte=deporte_rep.get("id_deporte") or deporte_clase.get("id_deporte"),
+        deporte=deporte_rep.get("nombre") or deporte_clase.get("nombre"),
         id_sede=sede_data.get("id_sede"),
         sede=sede_data.get("nombre"),
+        uuid_clase=clase_activa.get("uuid_clase"),
+        clase=_formatear_horario_clase(clase_activa),
     )
+
+
+def _construir_query_usuarios(
+    rol_norm: str | None,
+    estado_norm: str | None,
+    id_sede: int | None,
+    buscar: str | None,
+    id_plan: int | None,
+    id_deporte: int | None,
+    uuid_clase: Any = None,
+) -> list[str]:
+    """Construye los parámetros PostgREST sin recortar el historial de membresías."""
+    es_sede_socio = bool(id_sede and rol_norm == "socio")
+    es_sede_prof = bool(id_sede and rol_norm in ("profesor", "representante"))
+
+    exige_membresia = bool(
+        (estado_norm in ("moroso", "al_dia", "pendiente"))
+        or (estado_norm == "activo" and rol_norm == "socio")
+        or id_plan
+    )
+    tiene_filtro_socio = bool(
+        exige_membresia
+        or estado_norm == "inactivo"
+        or uuid_clase
+        or es_sede_socio
+    )
+    j_socio = "socio!inner" if tiene_filtro_socio else "socio"
+    j_memb = "membresia!inner" if exige_membresia else "membresia"
+    j_asist = "asistencia!inner" if (uuid_clase or es_sede_socio) else "asistencia"
+    j_clase_socio = "clase!inner" if es_sede_socio else "clase"
+
+    j_prof = (
+        "profesor!inner"
+        if (id_deporte or es_sede_prof or rol_norm == "representante")
+        else "profesor"
+    )
+    j_rep = (
+        "representante!inner"
+        if (id_deporte or rol_norm == "representante")
+        else "representante"
+    )
+    j_clase_prof = "clase!inner" if es_sede_prof else "clase"
+
+    select_usuarios = (
+        "uuid_usuario,DNI,nombre,apellido,fecha_nacimiento,id_rol,"
+        "rol!inner(id_rol,nombre),"
+        f"{j_socio}(codigo_credencial,"
+        f"{j_memb}(id_membresia,id_plan,fecha_inicio,fecha_fin,porcentaje_descuento,"
+        "plan(id_plan,nombre,precio_semanal,clases_semanales),"
+        "pago(id_pago,monto)),"
+        f"{j_asist}(id_asistencia,uuid_clase,fecha,"
+        f"{j_clase_socio}(uuid_clase,dia_de_semana,hora_inicio,hora_fin,id_sede,id_deporte,"
+        "deporte(id_deporte,nombre),sede(id_sede,nombre)))),"
+        f"{j_prof}(id_profesor,"
+        f"{j_rep}(id_representante,id_deporte,deporte(id_deporte,nombre)),"
+        f"{j_clase_prof}(uuid_clase,dia_de_semana,hora_inicio,hora_fin,id_sede,sede(id_sede,nombre)))"
+    )
+
+    query_parts = [
+        f"select={quote(select_usuarios, safe='(),!*')}",
+        "order=apellido.asc,uuid_usuario.asc",
+    ]
+
+    if rol_norm and rol_norm != "representante":
+        query_parts.append(f"rol.nombre=ilike.{quote(rol_norm, safe='')}%25")
+    elif estado_norm in ("moroso", "pendiente", "al_dia", "inactivo") and not rol_norm:
+        query_parts.append("rol.nombre=ilike.socio%25")
+
+    if id_plan:
+        query_parts.append(f"socio.membresia.id_plan=eq.{id_plan}")
+    if uuid_clase:
+        query_parts.append(f"socio.asistencia.uuid_clase=eq.{quote(str(uuid_clase), safe='')}")
+    if id_deporte:
+        query_parts.append(f"profesor.representante.id_deporte=eq.{id_deporte}")
+    if es_sede_socio:
+        query_parts.append(f"socio.asistencia.clase.id_sede=eq.{id_sede}")
+    elif es_sede_prof:
+        query_parts.append(f"profesor.clase.id_sede=eq.{id_sede}")
+
+    terminos = _terminos_de_busqueda(buscar)
+    if len(terminos) == 1:
+        or_cond = ",".join(_condiciones_para(terminos[0]))
+        query_parts.append(f"or=({quote(or_cond, safe=',.*')})")
+    elif len(terminos) > 1:
+        grupos_or = [f"or({','.join(_condiciones_para(p))})" for p in terminos]
+        and_cond = ",".join(grupos_or)
+        query_parts.append(f"and=({quote(and_cond, safe=',().*')})")
+
+    return query_parts
 
 
 async def filtrar_usuarios_por_rol(
@@ -268,6 +405,7 @@ async def filtrar_usuarios_por_rol(
     buscar: str | None = None,
     id_plan: int | None = None,
     id_deporte: int | None = None,
+    uuid_clase: Any = None,
 ) -> ListadoUsuariosResponse:
     url, key = get_supabase_config(env)
 
@@ -282,7 +420,11 @@ async def filtrar_usuarios_por_rol(
     id_plan = id_plan if id_plan and id_plan > 0 else None
     id_deporte = id_deporte if id_deporte and id_deporte > 0 else None
 
-    if estado_norm == "moroso" and rol_norm in ("profesor", "representante", "administrador"):
+    if estado_norm in ("moroso", "pendiente", "al_dia", "inactivo") and rol_norm in (
+        "profesor",
+        "representante",
+        "administrador",
+    ):
         return ListadoUsuariosResponse(
             datos=[],
             paginacion=PaginacionUsuariosInfo(
@@ -293,77 +435,45 @@ async def filtrar_usuarios_por_rol(
             ),
         )
 
-    j_socio = (
-        "socio!inner"
-        if (estado_norm in ("moroso", "activo", "al_dia", "pendiente") or id_plan)
-        else "socio"
-    )
-    j_memb = (
-        "membresia!inner"
-        if (estado_norm in ("moroso", "activo", "al_dia", "pendiente") or id_plan)
-        else "membresia"
-    )
-    j_prof = (
-        "profesor!inner"
-        if (id_deporte or id_sede or rol_norm == "representante")
-        else "profesor"
-    )
-    j_rep = (
-        "representante!inner"
-        if (id_deporte or rol_norm == "representante")
-        else "representante"
-    )
-    j_clase = "clase!inner" if id_sede else "clase"
-
-    select_usuarios = (
-        "uuid_usuario,DNI,nombre,apellido,fecha_nacimiento,id_rol,"
-        "rol!inner(id_rol,nombre),"
-        f"{j_socio}(codigo_credencial,"
-        f"{j_memb}(id_membresia,id_plan,fecha_inicio,fecha_fin,porcentaje_descuento,"
-        "plan(id_plan,nombre,precio_semanal,clases_semanales),"
-        "pago(id_pago,monto))),"
-        f"{j_prof}(id_profesor,"
-        f"{j_rep}(id_representante,id_deporte,deporte(id_deporte,nombre)),"
-        f"{j_clase}(id_sede,sede(id_sede,nombre)))"
-    )
-
     inicio = (page - 1) * limit
     fin = inicio + limit - 1
 
-    query_parts = [
-        f"select={quote(select_usuarios, safe='(),!*')}",
-        "order=apellido.asc,uuid_usuario.asc",
-    ]
+    # Si hay filtro de estado calculado o filtro de sede sin rol fijo,
+    # paginamos sobre el conjunto filtrado para que el total coincida 100% con la exportación.
+    if estado_norm is not None or (id_sede and not rol_norm):
+        usuarios_filtrados = await obtener_usuarios_para_exportar(
+            env=env,
+            access_token=access_token,
+            rol=rol_norm,
+            estado=estado_norm,
+            id_sede=id_sede,
+            buscar=buscar,
+            id_plan=id_plan,
+            id_deporte=id_deporte,
+            uuid_clase=uuid_clase,
+        )
+        total_registros = len(usuarios_filtrados)
+        datos = usuarios_filtrados[inicio : inicio + limit]
+        total_paginas = math.ceil(total_registros / limit) if total_registros else 0
+        return ListadoUsuariosResponse(
+            datos=datos,
+            paginacion=PaginacionUsuariosInfo(
+                paginaActual=page,
+                elementosPorPagina=limit,
+                totalPaginas=total_paginas,
+                totalRegistros=total_registros,
+            ),
+        )
 
-    if rol_norm and rol_norm != "representante":
-        query_parts.append(f"rol.nombre=ilike.{quote(rol_norm, safe='')}%25")
-
-    hoy = date.today()
-    fecha_limite_moroso = (hoy - timedelta(days=DIAS_PARA_CONSIDERAR_MOROSO)).isoformat()
-
-    if estado_norm == "moroso":
-        query_parts.append(f"socio.membresia.fecha_fin=lt.{fecha_limite_moroso}")
-    elif estado_norm in ("activo", "al_dia") and rol_norm == "socio":
-        query_parts.append(f"socio.membresia.fecha_fin=gte.{hoy.isoformat()}")
-    elif estado_norm == "pendiente":
-        query_parts.append(f"socio.membresia.fecha_fin=lt.{hoy.isoformat()}")
-        query_parts.append(f"socio.membresia.fecha_fin=gte.{fecha_limite_moroso}")
-
-    if id_plan:
-        query_parts.append(f"socio.membresia.id_plan=eq.{id_plan}")
-    if id_deporte:
-        query_parts.append(f"profesor.representante.id_deporte=eq.{id_deporte}")
-    if id_sede:
-        query_parts.append(f"profesor.clase.id_sede=eq.{id_sede}")
-
-    terminos = _terminos_de_busqueda(buscar)
-    if len(terminos) == 1:
-        or_cond = ",".join(_condiciones_para(terminos[0]))
-        query_parts.append(f"or=({quote(or_cond, safe=',.*')})")
-    elif len(terminos) > 1:
-        grupos_or = [f"or({','.join(_condiciones_para(p))})" for p in terminos]
-        and_cond = ",".join(grupos_or)
-        query_parts.append(f"and=({quote(and_cond, safe=',().*')})")
+    query_parts = _construir_query_usuarios(
+        rol_norm=rol_norm,
+        estado_norm=estado_norm,
+        id_sede=id_sede,
+        buscar=buscar,
+        id_plan=id_plan,
+        id_deporte=id_deporte,
+        uuid_clase=uuid_clase,
+    )
 
     full_url = f"{url}/rest/v1/usuario?{'&'.join(query_parts)}"
     headers = {
@@ -406,3 +516,95 @@ async def filtrar_usuarios_por_rol(
             totalRegistros=total_registros,
         ),
     )
+
+
+async def obtener_usuarios_para_exportar(
+    env,
+    access_token: str | None = None,
+    rol: str | None = "socio",
+    estado: str | None = None,
+    id_sede: int | None = None,
+    buscar: str | None = None,
+    id_plan: int | None = None,
+    id_deporte: int | None = None,
+    uuid_clase: Any = None,
+) -> list[UsuarioFiltradoResponse]:
+    """Obtiene todos los socios/usuarios filtrados por lotes para exportar a XLSX o PDF."""
+    url, key = get_supabase_config(env)
+
+    rol_norm, estado_norm = _validar_filtros(rol, estado)
+
+    id_sede = id_sede if id_sede and id_sede > 0 else None
+    id_plan = id_plan if id_plan and id_plan > 0 else None
+    id_deporte = id_deporte if id_deporte and id_deporte > 0 else None
+
+    if estado_norm in ("moroso", "pendiente", "al_dia", "inactivo") and rol_norm in (
+        "profesor",
+        "representante",
+        "administrador",
+    ):
+        return []
+
+    query_parts = _construir_query_usuarios(
+        rol_norm=rol_norm,
+        estado_norm=estado_norm,
+        id_sede=id_sede,
+        buscar=buscar,
+        id_plan=id_plan,
+        id_deporte=id_deporte,
+        uuid_clase=uuid_clase,
+    )
+
+    full_url = f"{url}/rest/v1/usuario?{'&'.join(query_parts)}"
+    filas_totales: list[dict[str, Any]] = []
+    offset = 0
+
+    while True:
+        headers = {
+            "apikey": key,
+            "Authorization": f"Bearer {access_token or key}",
+            "Range-Unit": "items",
+            "Range": f"{offset}-{offset + LOTE_EXPORTACION - 1}",
+        }
+        response = await fetch(full_url, headers=headers)
+
+        if response.status == 416:
+            break
+        if response.status in (401, 403):
+            raise HTTPException(
+                status_code=response.status,
+                detail="No tenés permisos o tu sesión expiró.",
+            )
+        if not response.ok:
+            raise await _error_upstream(response, "Error al consultar los usuarios para exportar")
+
+        lote = await response.json()
+        if not lote:
+            break
+
+        filas_totales.extend(lote)
+        if len(filas_totales) > MAX_FILAS_EXPORTACION:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"La exportación supera las {MAX_FILAS_EXPORTACION} filas. "
+                    "Aplicá más filtros (por ejemplo, por clase o sede)."
+                ),
+            )
+        # Se avanza por lo que realmente llegó: si Supabase limita las filas por respuesta
+        # (max_rows) a menos que LOTE_EXPORTACION, cortar con "len(lote) < LOTE_EXPORTACION"
+        # dejaba la exportación incompleta sin avisar.
+        offset += len(lote)
+
+    usuarios = [
+        u for f in filas_totales
+        if _cumple_filtro_estado(u := _armar_usuario_filtrado(f), estado_norm)
+    ]
+
+    if id_sede and not rol_norm:
+        usuarios = [u for u in usuarios if u.id_sede == id_sede]
+
+    if id_plan:
+        usuarios = [u for u in usuarios if u.id_plan == id_plan]
+
+    return usuarios

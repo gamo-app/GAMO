@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from uuid import UUID
+from fastapi import APIRouter, Depends, Query, Request
 from Base import base_rol as rol
+from Routers import router_exportacion
 from auth import validar_sesion
 from model import ListadoUsuariosResponse
 
@@ -45,20 +47,31 @@ async def get_usuarios_filtrados_por_rol(
         None,
         description="Opcional: filtrar representantes por ID de deporte",
     ),
+    uuid_clase: UUID | None = Query(
+        None,
+        description="Opcional: filtrar socios por UUID de clase",
+    ),
+    id_clase: UUID | None = Query(
+        None,
+        include_in_schema=False,
+    ),
     access_token: str = Depends(validar_sesion),
 ):
-    try:
-        return await rol.filtrar_usuarios_por_rol(
-            env=request.scope["env"],
-            access_token=access_token,
-            page=page,
-            limit=limit,
-            rol=rol_filtro,
-            estado=estado,
-            id_sede=id_sede,
-            buscar=buscar,
-            id_plan=id_plan,
-            id_deporte=id_deporte,
-        )
-    except HTTPException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return await rol.filtrar_usuarios_por_rol(
+        env=request.scope["env"],
+        access_token=access_token,
+        page=page,
+        limit=limit,
+        rol=rol_filtro,
+        estado=estado,
+        id_sede=id_sede,
+        buscar=buscar,
+        id_plan=id_plan,
+        id_deporte=id_deporte,
+        uuid_clase=uuid_clase or id_clase,
+    )
+
+
+# La exportación a XLSX/PDF está en router_exportacion.py. Se publica acá para que las URLs
+# sigan siendo /rol/exportar/xlsx y /rol/exportar/pdf (con la sesión que ya exige /rol).
+router.include_router(router_exportacion.router, prefix="/exportar")

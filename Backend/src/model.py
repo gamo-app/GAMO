@@ -264,13 +264,15 @@ class UsuarioFiltradoResponse(BaseModel):
     monto_cuota: Decimal | None = None
     es_moroso: bool = False
 
-    # Datos de Profesor, Representante y Sede
+    # Datos de Profesor, Representante, Sede y Clase
     id_profesor: int | None = None
     id_representante: int | None = None
     id_deporte: int | None = None
     deporte: str | None = None
     id_sede: int | None = None
     sede: str | None = None
+    uuid_clase: UUID | None = None
+    clase: str | None = None
 
 
 class PaginacionUsuariosInfo(BaseModel):
